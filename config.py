@@ -340,7 +340,7 @@ class Config:
     def get_emby_proxy_enabled():
         """获取是否启用Emby反向代理"""
         s = _load_settings()
-        return s.get('emby_proxy_enabled', True)
+        return s.get('emby_proxy_enabled', False)
 
     @staticmethod
     def get_emby_proxy_port():
