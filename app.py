@@ -191,14 +191,15 @@ def init_db():
                        (json_module.dumps(perms), row['id']))
     db.commit()
     
-    # 如果管理员用户不存在，创建一个
-    cursor = db.execute('SELECT id FROM users WHERE username = ?', (Config.ADMIN_USERNAME,))
-    if not cursor.fetchone():
+    # 如果管理员用户不存在，创建一个（使用 INSERT OR IGNORE 避免多 worker 竞态条件）
+    try:
         db.execute(
-            'INSERT INTO users (username, password_hash, display_name, is_admin) VALUES (?, ?, ?, 1)',
+            'INSERT OR IGNORE INTO users (username, password_hash, display_name, is_admin) VALUES (?, ?, ?, 1)',
             (Config.ADMIN_USERNAME, generate_password_hash(Config.ADMIN_PASSWORD), '管理员')
         )
         db.commit()
+    except Exception:
+        pass  # 用户已存在时忽略
 
 # Flask 版本号
 FLASK_VERSION = flask.__version__
