@@ -349,6 +349,16 @@ class Config:
         return s.get('emby_proxy_port', 8097)
 
     @staticmethod
+    def update_emby_proxy_config(enabled=None, port=None):
+        """更新Emby反向代理配置"""
+        s = _load_settings()
+        if enabled is not None:
+            s['emby_proxy_enabled'] = enabled
+        if port is not None:
+            s['emby_proxy_port'] = port
+        _save_settings(s)
+
+    @staticmethod
     def update_scraper_config(tmdb_api_key=None, proxy=None, proxy_enabled=None, douban_fallback=None):
         """更新刮削配置"""
         s = _load_settings()

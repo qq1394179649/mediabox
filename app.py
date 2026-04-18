@@ -2408,6 +2408,23 @@ def app_settings():
             )
             flash('刮削配置已更新', 'success')
 
+        elif form_type == 'emby_proxy_config':
+            # 更新Emby反向代理配置
+            proxy_enabled = request.form.get('emby_proxy_enabled') == 'on'
+            proxy_port = request.form.get('emby_proxy_port', '8097').strip()
+            try:
+                proxy_port = int(proxy_port)
+                if proxy_port < 1024 or proxy_port > 65535:
+                    raise ValueError()
+            except:
+                flash('端口号无效，请输入 1024-65535 之间的数字', 'danger')
+                return redirect(url_for('app_settings'))
+            
+            Config.update_emby_proxy_config(enabled=proxy_enabled, port=proxy_port)
+            # 动态更新反代服务
+            update_emby_proxy(enabled=proxy_enabled, port=proxy_port)
+            flash('Emby反向代理配置已更新', 'success')
+
         return redirect(url_for('app_settings'))
 
     current_url = Config.get_emby_url()
@@ -2430,7 +2447,9 @@ def app_settings():
                            tmdb_api_key=Config.get_tmdb_api_key(),
                            scraper_proxy=Config.get_proxy(),
                            scraper_proxy_enabled=Config.get_proxy_enabled(),
-                           douban_fallback=Config.get_douban_fallback())
+                           douban_fallback=Config.get_douban_fallback(),
+                           emby_proxy_enabled=Config.get_emby_proxy_enabled(),
+                           emby_proxy_port=Config.get_emby_proxy_port())
 
 
 # ========== API接口（AJAX） ==========
@@ -2773,6 +2792,24 @@ def restart_proxy_server():
     _stop_proxy_server()
     if Config.get_emby_proxy_enabled():
         _start_proxy_server()
+
+
+def update_emby_proxy(enabled=None, port=None):
+    """更新反代服务（供设置页面调用）"""
+    if enabled is False:
+        # 关闭反代
+        _stop_proxy_server()
+    elif enabled is True:
+        # 启用反代
+        if port:
+            _stop_proxy_server()
+        if not _proxy_server:
+            _start_proxy_server()
+    elif port is not None:
+        # 端口变更需要重启
+        if _proxy_server:
+            _stop_proxy_server()
+            _start_proxy_server()
 
 
 # ========== 错误处理 ==========

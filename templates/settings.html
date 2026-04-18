@@ -60,6 +60,48 @@
     </div>
 </div>
 
+<!-- Emby反向代理设置 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>🎭 Emby反向代理</h3>
+        <div>
+            {% if emby_proxy_enabled %}
+            <span class="badge badge-success">✅ 已启用</span>
+            {% else %}
+            <span class="badge badge-secondary">❌ 已关闭</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="proxy-config-form">
+            <input type="hidden" name="form_type" value="emby_proxy_config">
+            <div style="display:grid; grid-template-columns: auto 1fr; gap:16px; align-items:center;">
+                <div class="form-group" style="margin:0;">
+                    <label class="switch-toggle">
+                        <input type="checkbox" name="emby_proxy_enabled" id="emby_proxy_enabled"
+                               {% if emby_proxy_enabled %}checked{% endif %}
+                               onchange="toggleProxyPort()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label for="emby_proxy_port">代理端口</label>
+                    <input type="number" id="emby_proxy_port" name="emby_proxy_port" class="form-control"
+                           value="{{ emby_proxy_port or 8097 }}" placeholder="8097" min="1024" max="65535"
+                           {% if not emby_proxy_enabled %}disabled{% endif %}>
+                    <p class="text-muted mt-1" style="font-size:12px;">默认 8097，关闭时请先保存再停用</p>
+                </div>
+            </div>
+            <div class="d-flex gap-1 mt-3">
+                <button type="submit" class="btn btn-primary">💾 保存配置</button>
+                {% if emby_proxy_enabled %}
+                <a href="{{ url_for('emby_proxy_page') }}" class="btn btn-secondary">🔗 打开反代页面</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- 主题选择 -->
 <div class="card mt-3 fade-in">
     <div class="card-header">
