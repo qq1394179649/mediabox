@@ -18,7 +18,7 @@ import flask
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, make_response, Response, stream_with_context, g
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from config import Config, THEMES
+from config import Config, THEMES, _save_settings
 from emby_client import EmbyClient
 from scraper import MediaScraper
 import requests as http_requests
@@ -557,7 +557,7 @@ def api_setup_complete():
             # 需要更新settings中的admin_username
             s = Config._load_settings()
             s['admin_username'] = admin_username
-            Config._save_settings(s)
+            _save_settings(s)
         
         db.commit()
         
