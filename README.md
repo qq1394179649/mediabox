@@ -84,6 +84,38 @@ docker run -d \
   ghcr.io/qq1394179649/mediabox:latest
 ```
 
+### Docker compose
+  services:
+  mediabox:
+    image: ghcr.io/qq1394179649/mediabox:latest
+    container_name: mediabox
+    restart: unless-stopped
+    
+    ports:
+      - "15000:5000"    # 正常访问端口
+
+    volumes:
+      - /vol1/1000/docker/mediabox/data:/app/data
+      - /vol1/1000/docker/mediabox/logs:/app/logs
+
+    environment:
+      - TZ=Asia/Shanghai
+      - EMBY_SERVER_URL=http://10.0.0.10:8096    # 你的 Emby 地址
+      - EMBY_API_KEY=XXXXXXXXXXX                # 把这里改成你的真实API密钥
+      - SECRET_KEY=mediabox_2025_random_key     # 随便填一串随机字符
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  default:
+    driver: bridge
+    
+
 ## 📦 技术栈
 
 - **后端**: Python 3.11 / Flask / Flask-Login
