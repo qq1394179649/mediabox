@@ -1,27 +1,73 @@
-version: '3.8'
+# ============================================
+# MediaBox - docker-compose.yml
+# Emby 媒体库管理系统
+# ============================================
+#
+# 使用方式:
+#   仅 MediaBox:     docker-compose up -d mediabox
+#   完整部署(含Emby): docker-compose up -d
+#   查看日志:         docker-compose logs -f
+#   停止服务:         docker-compose down
+#
+# ============================================
 
 services:
+  # ---------- MediaBox 管理面板 ----------
   mediabox:
     image: ghcr.io/qq1394179649/mediabox:latest
-    # 如需本地构建，取消注释下面一行，注释上面一行
-    # build: .
     container_name: mediabox
-    ports:
-      - "5000:5000"
-      - "8097:8097"  # Emby 反代端口
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./settings.json:/app/settings.json
-    environment:
-      - FLASK_ENV=production
-      # - EMBY_SERVER_URL=http://your-emby-server:8096
-      # - EMBY_API_KEY=your-api-key
-      # - SECRET_KEY=change-this-to-a-random-string
     restart: unless-stopped
+    
+    ports:
+      - "5000:5000"    # MediaBox Web 界面
+      - "8097:8097"    # Emby 反代端口（可选）
+
+    volumes:
+      - ./data:/app/data         # SQLite 数据库
+      - ./logs:/app/logs         # 应用日志
+      - ./settings.json:/app/settings.json:ro  # 配置文件（只读）
+
+    environment:
+      - TZ=Asia/Shanghai         # 时区
+      # ↓↓↓ 首次部署请取消注释并填写 ↓↓↓
+      # - EMBY_SERVER_URL=http://emby:8096
+      # - EMBY_API_KEY=your_emby_api_key_here
+      # - SECRET_KEY=your_random_secret_key_here
+
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 10s
+
+    networks:
+      - mediabox-net
+
+  # ---------- 可选: Emby Server ----------
+  # 如果你还没有 Emby 服务器，可以取消注释以下配置启用
+  # emby:
+  #   image: emby/embyserver:latest
+  #   container_name: emby
+  #   restart: unless-stopped
+  #   environment:
+  #     - TZ=Asia/Shanghai
+  #   ports:
+  #     - "8096:8096"    # Emby Web
+  #     - "8920:8920"    # HTTPS（可选）
+  #   volumes:
+  #     - emby-config:/config
+  #     - emby-cache:/cache
+  #     - /path/to/your/media:/media  # 媒体文件目录，修改为实际路径
+  #   networks:
+  #     - mediabox-net
+
+# ---------- 数据卷 ----------
+volumes:
+  # emby-config:  # 取消注释以启用 Emby
+  # emby-cache:    # 取消注释以启用 Emby
+
+# ---------- 网络 ----------
+networks:
+  mediabox-net:
+    driver: bridge
