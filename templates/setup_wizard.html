@@ -157,6 +157,7 @@ body {
     transition: all 0.2s;
     box-sizing: border-box;
     font-family: inherit;
+    color: #1f2937;
 }
 
 .form-control:focus {
@@ -591,7 +592,7 @@ body {
         });
         
         prevBtn.style.display = currentStep > 1 && currentStep < 4 ? 'flex' : 'none';
-        nextBtn.style.display = currentStep < 3 ? 'flex' : 'none';
+        nextBtn.style.display = currentStep < 4 ? 'flex' : 'none';
         submitBtn.style.display = currentStep === 4 ? 'flex' : 'none';
         
         if (currentStep === 1) {
