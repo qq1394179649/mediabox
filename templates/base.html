@@ -382,6 +382,8 @@
     updateTime();
     setInterval(updateTime, 1000);
     </script>
+    {% else %}
+    {% block login_content %}{% endblock %}
     {% endif %}
 
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
