@@ -46,7 +46,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/yourusername/mediabox.git
+git clone https://github.com/qq1394179649/mediabox.git
 cd mediabox
 
 # 启动服务
@@ -59,7 +59,7 @@ docker-compose up -d
 
 ```bash
 # 克隆项目
-git clone https://github.com/yourusername/mediabox.git
+git clone https://github.com/qq1394179649/mediabox.git
 cd mediabox
 
 # 安装依赖
@@ -81,7 +81,7 @@ docker run -d \
   -v $(pwd)/logs:/app/logs \
   -e EMBY_SERVER_URL=http://your-emby-server:8096 \
   -e EMBY_API_KEY=your-api-key \
-  ghcr.io/yourusername/mediabox:latest
+  ghcr.io/qq1394179649/mediabox:latest
 ```
 
 ## 📦 技术栈
