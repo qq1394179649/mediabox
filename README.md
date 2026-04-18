@@ -89,7 +89,7 @@ docker run -d \
 
 
 ### Docker compose
-  ```bash
+```bash
   services:
   mediabox:
     image: ghcr.io/qq1394179649/mediabox:latest
@@ -119,7 +119,7 @@ docker run -d \
 networks:
   default:
     driver: bridge
-      ```
+```    
 
 
 ## 📦 技术栈
