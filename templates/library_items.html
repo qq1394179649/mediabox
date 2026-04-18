@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}媒体浏览 - Emby管理系统{% endblock %}
+{% block topbar_title %}🎬 媒体浏览{% endblock %}
+
+{% block content %}
+<!-- 搜索和筛选栏 -->
+<div class="search-bar fade-in">
+    <form method="GET" action="{{ url_for('library_items') }}">
+        {% if parent_id %}<input type="hidden" name="parent_id" value="{{ parent_id }}">{% endif %}
+        <input type="text" name="search" class="form-control" placeholder="搜索媒体..." value="{{ search }}" style="flex:1;">
+        <select name="item_type" class="form-control" style="max-width:140px;">
+            <option value="">所有类型</option>
+            <option value="Movie" {% if item_type == 'Movie' %}selected{% endif %}>电影</option>
+            <option value="Series" {% if item_type == 'Series' %}selected{% endif %}>剧集</option>
+            <option value="Episode" {% if item_type == 'Episode' %}selected{% endif %}>集</option>
+            <option value="MusicAlbum" {% if item_type == 'MusicAlbum' %}selected{% endif %}>专辑</option>
+            <option value="Audio" {% if item_type == 'Audio' %}selected{% endif %}>歌曲</option>
+            <option value="Book" {% if item_type == 'Book' %}selected{% endif %}>书籍</option>
+        </select>
+        <select name="per_page" class="form-control" style="max-width:120px;">
+            <option value="10" {% if per_page == 10 %}selected{% endif %}>10条/页</option>
+            <option value="20" {% if per_page == 20 %}selected{% endif %}>20条/页</option>
+            <option value="30" {% if per_page == 30 %}selected{% endif %}>30条/页</option>
+            <option value="40" {% if per_page == 40 %}selected{% endif %}>40条/页</option>
+            <option value="50" {% if per_page == 50 %}selected{% endif %}>50条/页</option>
+            <option value="all" {% if per_page == 'all' %}selected{% endif %}>全部</option>
+        </select>
+        <button type="submit" class="btn btn-primary">🔍 搜索</button>
+        <a href="{{ url_for('library_items') }}" class="btn btn-secondary">清除</a>
+    </form>
+</div>
+
+{% if search %}
+<div class="mb-2 fade-in">
+    <p class="text-muted">搜索 "<strong>{{ search }}</strong>" 找到 {{ total }} 个结果</p>
+</div>
+{% endif %}
+
+<!-- 媒体网格 -->
+{% if items %}
+<div class="media-grid fade-in">
+    {% for item in items %}
+    {% if item.get('Id') %}
+    <a href="{{ url_for('library_item_detail', item_id=item['Id']) }}" class="media-card">
+    {% else %}
+    <div class="media-card">
+    {% endif %}
+        <div class="media-poster">
+            {% if item.get('ImageTags', {}).get('Primary') %}
+            <img src="{{ emby_url }}/emby/Items/{{ item.get('Id') }}/Images/Primary?api_key={{ emby_api_key }}&maxWidth=300"
+                 alt="{{ item.get('Name', '') }}" loading="lazy">
+            {% else %}
+            {% set itype = item.get('Type', '') %}
+            {% if itype == 'Movie' %}🎬
+            {% elif itype == 'Series' %}📺
+            {% elif itype == 'Episode' %}📋
+            {% elif itype == 'MusicAlbum' %}🎵
+            {% elif itype == 'Audio' %}🎶
+            {% elif itype == 'Book' %}📖
+            {% else %}📄{% endif %}
+            {% endif %}
+        </div>
+        <div class="media-info">
+            <div class="media-title" title="{{ item.get('Name', '未命名') }}">{{ item.get('Name', '未命名') }}</div>
+            <div class="media-meta">
+                {% if item.get('ProductionYear') %}{{ item.get('ProductionYear') }}{% endif %}
+                {% if item.get('CommunityRating') %} ⭐{{ "%.1f"|format(item.get('CommunityRating')) }}{% endif %}
+            </div>
+        </div>
+    {% if item.get('Id') %}</a>{% else %}</div>{% endif %}
+    {% endfor %}
+</div>
+
+<!-- 分页 -->
+{% if total_pages > 1 %}
+<div class="pagination fade-in">
+    {% if page > 1 %}
+    <a href="{{ url_for('library_items', parent_id=parent_id, item_type=item_type, search=search, page=page-1, per_page=per_page) }}">上一页</a>
+    {% else %}
+    <span class="disabled">上一页</span>
+    {% endif %}
+
+    <span>第 {{ page }} / {{ total_pages }} 页 (共 {{ total }} 条)</span>
+
+    {% if page < total_pages %}
+    <a href="{{ url_for('library_items', parent_id=parent_id, item_type=item_type, search=search, page=page+1, per_page=per_page) }}">下一页</a>
+    {% else %}
+    <span class="disabled">下一页</span>
+    {% endif %}
+
+    <!-- 页码跳转 -->
+    <span class="page-jump">
+        跳转 <input type="number" id="page-input" class="page-input" min="1" max="{{ total_pages }}" value="{{ page }}" onkeypress="if(event.key==='Enter'){var p=document.getElementById('page-input').value;if(p>=1&&p<={{ total_pages }}){window.location.href='{{ url_for('library_items', parent_id=parent_id, item_type=item_type, search=search, page='', per_page=per_page) }}'+p;}}"> 页
+        <button onclick="var p=document.getElementById('page-input').value;if(p>=1&&p<={{ total_pages }}){window.location.href='{{ url_for('library_items', parent_id=parent_id, item_type=item_type, search=search, page='', per_page=per_page) }}'+p;" class="btn btn-sm btn-ghost">跳转</button>
+    </span>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state fade-in">
+    <div class="empty-icon">🎬</div>
+    <h3>暂无媒体</h3>
+    <p class="text-muted">没有找到匹配的媒体内容</p>
+</div>
+{% endif %}
+{% endblock %}

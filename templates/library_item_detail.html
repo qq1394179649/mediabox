@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.get('Name', '媒体详情') }} - Emby管理系统{% endblock %}
+{% block topbar_title %}🎬 {{ item.get('Name', '媒体详情') }}{% endblock %}
+
+{% block content %}
+<!-- Detail Header -->
+<div class="detail-header fade-in">
+    <div class="detail-poster">
+        {% if item.get('ImageTags', {}).get('Primary') %}
+        <img src="{{ emby_url }}/emby/Items/{{ item.get('Id') }}/Images/Primary?api_key={{ emby_api_key }}&maxWidth=400"
+             alt="{{ item.get('Name', '') }}">
+        {% else %}
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:64px;opacity:.2;">
+            {% if item.get('Type') == 'Movie' %}🎬
+            {% elif item.get('Type') == 'Series' %}📺
+            {% elif item.get('Type') == 'MusicAlbum' %}🎵
+            {% elif item.get('Type') == 'Book' %}📖
+            {% else %}📄{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    <div class="detail-info">
+        <h1>{{ item.get('Name', '未命名') }}</h1>
+        <div class="detail-meta">
+            {% if item.get('Type') %}<span class="badge badge-primary">{{ item.get('Type') }}</span>{% endif %}
+            {% if item.get('ProductionYear') %}<span class="badge badge-info">{{ item.get('ProductionYear') }}</span>{% endif %}
+            {% if item.get('CommunityRating') %}<span class="badge badge-warning">⭐ {{ "%.1f"|format(item.get('CommunityRating')) }}</span>{% endif %}
+            {% if item.get('OfficialRating') %}<span class="badge badge-danger">{{ item.get('OfficialRating') }}</span>{% endif %}
+            {% if item.get('RunTimeTicks') %}
+            {% set minutes = (item.get('RunTimeTicks') / 600000000) | int %}
+            <span class="badge badge-info">{{ minutes }} 分钟</span>
+            {% endif %}
+        </div>
+
+        {% if item.get('Genres') %}
+        <div class="mt-2 d-flex gap-1 flex-wrap">
+            {% for genre in item.get('Genres', []) %}
+            <span class="badge badge-primary">{{ genre }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if item.get('Studios') %}
+        <div class="mt-1">
+            <span class="text-muted">制片：</span>
+            {% for studio in item.get('Studios', []) %}
+            <span class="badge badge-secondary">{{ studio.get('Name', '') }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if item.get('Overview') %}
+        <div class="detail-overview mt-2">
+            <h4 style="margin-bottom:8px;font-size:15px;font-weight:600;">简介</h4>
+            <p>{{ item.get('Overview') }}</p>
+        </div>
+        {% endif %}
+
+        <div class="mt-2 d-flex gap-1">
+            {% if item.get('Id') %}
+            <button type="button" class="btn btn-sm btn-primary" onclick="scrapeMedia(true)">🎬 刮削并应用</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="scrapeMedia(false)">🔍 仅搜索</button>
+            <form method="POST" action="{{ url_for('library_item_refresh', item_id=item['Id']) }}" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-ghost">🔄 刷新元数据</button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('library_items') }}" class="btn btn-sm btn-secondary">← 返回浏览</a>
+        </div>
+
+        <!-- 刮削结果区域 -->
+        <div id="scrape-result" style="display:none; margin-top:16px; padding:16px; border-radius:8px; background:var(--card-bg); border:1px solid var(--border-color);">
+            <div class="d-flex align-center justify-between mb-2">
+                <div class="d-flex align-center gap-2">
+                    <span id="scrape-source" class="badge badge-success"></span>
+                    <strong id="scrape-title"></strong>
+                </div>
+                <div id="scrape-actions">
+                    <button id="apply-scrape-btn" class="btn btn-sm btn-success" onclick="applyScrapeResult()">✅ 应用到Emby</button>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 120px 1fr; gap:12px;">
+                <div>
+                    <img id="scrape-poster" src="" style="width:100%; border-radius:6px;">
+                </div>
+                <div>
+                    <p id="scrape-overview" style="font-size:13px; color:var(--text-secondary); line-height:1.6;"></p>
+                    <div id="scrape-meta" style="margin-top:8px; font-size:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 手动匹配区域 -->
+        <div id="manual-match-panel" style="display:none; margin-top:16px; padding:16px; border-radius:8px; background:var(--card-bg); border:1px solid var(--warning);">
+            <h4 style="margin-bottom:12px;">🔧 手动匹配</h4>
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+                自动匹配失败，您可以通过以下方式手动匹配：
+            </p>
+            <div style="display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:end;">
+                <div>
+                    <label style="font-size:12px; color:var(--text-muted);">TMDB ID</label>
+                    <input type="number" id="manual-tmdb-id" class="form-control" placeholder="输入TMDB ID，如 123456">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="manualScrapeByTmdbId()">查询</button>
+            </div>
+            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:12px; margin-top:12px; align-items:end;">
+                <div>
+                    <label style="font-size:12px; color:var(--text-muted);">自定义标题</label>
+                    <input type="text" id="manual-title" class="form-control" placeholder="手动输入标题">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--text-muted);">年份</label>
+                    <input type="number" id="manual-year" class="form-control" placeholder="如 2023">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:var(--text-muted);">类型</label>
+                    <select id="manual-type" class="form-control">
+                        <option value="movie">电影</option>
+                        <option value="series">电视剧</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="manualScrapeSearch()">搜索</button>
+            </div>
+            <!-- 手动搜索结果列表 -->
+            <div id="manual-search-results" style="display:none; margin-top:16px; max-height:300px; overflow-y:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>选择</th>
+                            <th>海报</th>
+                            <th>标题</th>
+                            <th>年份</th>
+                            <th>评分</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manual-search-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Card -->
+<div class="card fade-in">
+    <div class="card-header"><h3>📋 详细信息</h3></div>
+    <div class="card-body no-padding">
+        <table class="data-table">
+            <tr><td class="text-muted" style="width:140px;">ID</td><td style="font-family:var(--font-mono);font-size:12px;opacity:.7;">{{ item.get('Id', '-') }}</td></tr>
+            <tr><td class="text-muted">类型</td><td>{{ item.get('Type', '-') }}</td></tr>
+            <tr><td class="text-muted">路径</td><td style="font-family:var(--font-mono);font-size:12px;">{{ item.get('Path', '-') }}</td></tr>
+            <tr><td class="text-muted">创建日期</td><td>{{ item.get('DateCreated', '-') }}</td></tr>
+            <tr><td class="text-muted">修改日期</td><td>{{ item.get('DateLastSaved', '-') }}</td></tr>
+            {% if item.get('Container') %}
+            <tr><td class="text-muted">容器格式</td><td>{{ item.get('Container') }}</td></tr>
+            {% endif %}
+            {% if item.get('MediaSources') %}
+            <tr><td class="text-muted">媒体源数</td><td>{{ item.get('MediaSources') | length }}</td></tr>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<!-- Similar Items -->
+{% if similar_items %}
+<div class="card mt-3 fade-in">
+    <div class="card-header"><h3>💡 相似推荐</h3></div>
+    <div class="card-body">
+        <div class="media-grid">
+            {% for sim in similar_items[:8] %}
+            {% if sim.get('Id') %}
+            <a href="{{ url_for('library_item_detail', item_id=sim['Id']) }}" class="media-card">
+            {% else %}
+            <div class="media-card">
+            {% endif %}
+                <div class="media-poster">
+                    {% if sim.get('ImageTags', {}).get('Primary') %}
+                    <img src="{{ emby_url }}/emby/Items/{{ sim.get('Id') }}/Images/Primary?api_key={{ emby_api_key }}&maxWidth=300"
+                         alt="{{ sim.get('Name', '') }}" loading="lazy">
+                    {% else %}🎬{% endif %}
+                </div>
+                <div class="media-info">
+                    <div class="media-title">{{ sim.get('Name', '未命名') }}</div>
+                    <div class="media-meta">{% if sim.get('ProductionYear') %}{{ sim.get('ProductionYear') }}{% endif %}</div>
+                </div>
+            {% if sim.get('Id') %}</a>{% else %}</div>{% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 全局变量保存当前项目信息
+const currentItem = {
+    id: '{{ item.get("Id", "") }}',
+    name: '{{ item.get("Name", "") }}',
+    type: '{{ item.get("Type", "") }}',
+    year: '{{ item.get("ProductionYear", "") }}'
+};
+
+// 保存当前刮削结果供应用使用
+let currentScrapeResult = null;
+
+// 刮削功能
+async function scrapeMedia(autoApply) {
+    const itemId = currentItem.id;
+    if (!itemId) {
+        alert('无法获取项目ID');
+        return;
+    }
+
+    // 隐藏之前的结果
+    document.getElementById('scrape-result').style.display = 'none';
+    document.getElementById('manual-match-panel').style.display = 'none';
+    currentScrapeResult = null;
+
+    // 禁用按钮
+    const buttons = document.querySelectorAll('button[onclick^="scrapeMedia"]');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = autoApply ? '⏳ 刮削并应用中...' : '⏳ 搜索中...';
+    });
+
+    try {
+        const resp = await fetch('/api/scraper/scrape-item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: itemId, apply: autoApply })
+        });
+
+        const data = await resp.json();
+
+        if (data.error) {
+            // 检查是否是配置问题
+            if (data.error.includes('API Key') || data.error.includes('配置') || data.error.includes('API')) {
+                let msg = '刮削失败：' + data.error;
+                if (data.details) msg += '\n\n💡 ' + data.details;
+                alert(msg);
+            } else if (data.error.includes('未找到匹配结果')) {
+                // 显示手动匹配面板
+                showManualMatchPanel();
+                if (data.details) {
+                    // 在面板中显示提示
+                    const panel = document.getElementById('manual-match-panel');
+                    const hint = document.createElement('div');
+                    hint.className = 'alert alert-warning';
+                    hint.style.marginTop = '12px';
+                    hint.innerHTML = '💡 ' + data.details;
+                    panel.insertBefore(hint, panel.firstChild);
+                }
+            } else {
+                let msg = '刮削失败: ' + data.error;
+                if (data.details) msg += '\n\n💡 ' + data.details;
+                alert(msg);
+            }
+            return;
+        }
+
+        // 保存刮削结果
+        currentScrapeResult = data;
+
+        // 显示刮削结果
+        showScrapeResult(data);
+
+        // 如果是自动应用，显示结果
+        if (autoApply) {
+            if (data.applied && data.applied.poster) {
+                let msg = '✅ 刮削并应用成功！\n';
+                if (data.poster_error && data.poster_error.includes('后台下载')) {
+                    msg += '\n⏳ 图片正在后台下载中...';
+                    msg += '\n请等待10-30秒后刷新页面查看。';
+                } else {
+                    msg += '\n海报和背景图已更新。';
+                    msg += '\n\n提示：如果图片未显示，请等待几秒后刷新页面。';
+                }
+                alert(msg);
+                // 自动刷新页面以显示新图片
+                setTimeout(() => location.reload(), data.poster_error && data.poster_error.includes('后台下载') ? 15000 : 3000);
+            } else {
+                let msg = '⚠️ 刮削成功但图片应用失败\n\n';
+                if (data.poster_error) {
+                    msg += '海报错误: ' + data.poster_error + '\n\n';
+                }
+                if (data.backdrop_error) {
+                    msg += '背景图错误: ' + data.backdrop_error + '\n\n';
+                }
+                msg += '请检查: 1. 网络连接是否正常 2. 代理设置是否正确\n';
+                msg += '如果持续失败，请手动在Emby中设置封面。';
+                alert(msg);
+            }
+        }
+
+        // 隐藏手动匹配面板
+        document.getElementById('manual-match-panel').style.display = 'none';
+
+    } catch (err) {
+        alert('请求失败: ' + err);
+    } finally {
+        // 恢复按钮
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.innerHTML = btn.getAttribute('onclick').includes('true') ? '🎬 刮削并应用' : '🔍 仅搜索';
+        });
+    }
+}
+
+// 应用刮削结果到Emby
+async function applyScrapeResult() {
+    if (!currentScrapeResult || !currentScrapeResult.poster_url) {
+        alert('没有可应用的刮削结果');
+        return;
+    }
+
+    const btn = document.getElementById('apply-scrape-btn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 应用中...';
+
+    try {
+        // 调用API应用刮削
+        const resp = await fetch('/api/scraper/scrape-item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: currentItem.id, apply: true })
+        });
+
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('应用失败: ' + data.error);
+        } else if (data.applied && data.applied.poster) {
+            btn.innerHTML = '✅ 已应用';
+            btn.className = 'btn btn-sm btn-success';
+            let msg = '✅ 应用成功！\n海报和背景图已更新。';
+            if (data.poster_error && data.poster_error.includes('后台下载')) {
+                msg = '✅ 应用成功！\n图片正在后台下载中，请等待10-30秒后刷新页面。';
+            }
+            alert(msg);
+            // 自动刷新页面以显示新图片
+            setTimeout(() => location.reload(), data.poster_error && data.poster_error.includes('后台下载') ? 15000 : 3000);
+        } else {
+            btn.innerHTML = '❌ 失败';
+            let msg = '⚠️ 应用失败\n\n';
+            if (data.poster_error) {
+                msg += '海报错误: ' + data.poster_error + '\n\n';
+            }
+            if (data.backdrop_error) {
+                msg += '背景图错误: ' + data.backdrop_error + '\n\n';
+            }
+            msg += '请检查网络连接和代理设置，或手动在Emby中设置封面。';
+            alert(msg);
+        }
+    } catch (err) {
+        alert('请求失败: ' + err);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// 显示手动匹配面板
+function showManualMatchPanel() {
+    const panel = document.getElementById('manual-match-panel');
+    panel.style.display = 'block';
+
+    // 预填充当前项目信息
+    document.getElementById('manual-title').value = currentItem.name;
+    document.getElementById('manual-year').value = currentItem.year;
+    document.getElementById('manual-type').value = currentItem.type === 'Series' ? 'series' : 'movie';
+
+    // 隐藏搜索结果
+    document.getElementById('manual-search-results').style.display = 'none';
+}
+
+// 通过TMDB ID查询
+async function manualScrapeByTmdbId() {
+    const tmdbId = document.getElementById('manual-tmdb-id').value.trim();
+    if (!tmdbId) {
+        alert('请输入TMDB ID');
+        return;
+    }
+
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 查询中...';
+
+    try {
+        const resp = await fetch(`/api/scraper/search?tmdb_id=${tmdbId}&type=${currentItem.type === 'Series' ? 'series' : 'movie'}`);
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('查询失败: ' + data.error);
+            return;
+        }
+
+        // 直接显示查询结果
+        showScrapeResult(data);
+        document.getElementById('manual-match-panel').style.display = 'none';
+
+    } catch (err) {
+        alert('请求失败: ' + err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '查询';
+    }
+}
+
+// 手动搜索
+async function manualScrapeSearch() {
+    const title = document.getElementById('manual-title').value.trim();
+    const year = document.getElementById('manual-year').value.trim();
+    const type = document.getElementById('manual-type').value;
+
+    if (!title) {
+        alert('请输入标题');
+        return;
+    }
+
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 搜索中...';
+
+    try {
+        const params = new URLSearchParams({ title, type });
+        if (year) params.append('year', year);
+
+        const resp = await fetch(`/api/scraper/search?${params}`);
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('搜索失败: ' + data.error);
+            return;
+        }
+
+        // 显示搜索结果列表
+        showManualSearchResults([data]);
+
+    } catch (err) {
+        alert('请求失败: ' + err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '搜索';
+    }
+}
+
+// 显示手动搜索结果列表
+function showManualSearchResults(results) {
+    const container = document.getElementById('manual-search-results');
+    const tbody = document.getElementById('manual-search-body');
+
+    if (!results || results.length === 0) {
+        container.style.display = 'none';
+        alert('未找到匹配结果');
+        return;
+    }
+
+    container.style.display = 'block';
+    tbody.innerHTML = '';
+
+    results.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="selectManualResult(${item.tmdb_id || 0})">
+                    选择
+                </button>
+            </td>
+            <td>
+                <img src="${item.poster_url || '/static/no-poster.png'}" 
+                     style="width:40px; height:60px; object-fit:cover; border-radius:4px;"
+                     onerror="this.src='/static/no-poster.png'">
+            </td>
+            <td>${item.title || item.name || '-'}</td>
+            <td>${item.release_date || item.first_air_date || '-'}</td>
+            <td>${item.vote_average ? item.vote_average.toFixed(1) : '-'}</td>
+        `;
+        // 保存tmdb_id到按钮
+        tr.querySelector('button').dataset.tmdbId = item.tmdb_id || '';
+        tbody.appendChild(tr);
+    });
+}
+
+// 选择手动搜索结果
+async function selectManualResult(tmdbId) {
+    if (!tmdbId) {
+        alert('无效的TMDB ID');
+        return;
+    }
+
+    await manualScrapeByTmdbIdWithId(tmdbId);
+}
+
+// 通过TMDB ID获取详情（内部方法）
+async function manualScrapeByTmdbIdWithId(tmdbId) {
+    try {
+        const resp = await fetch(`/api/scraper/search?tmdb_id=${tmdbId}&type=${currentItem.type === 'Series' ? 'series' : 'movie'}`);
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('获取详情失败: ' + data.error);
+            return;
+        }
+
+        showScrapeResult(data);
+        document.getElementById('manual-match-panel').style.display = 'none';
+        document.getElementById('manual-search-results').style.display = 'none';
+
+    } catch (err) {
+        alert('请求失败: ' + err);
+    }
+}
+
+function showScrapeResult(data) {
+    const container = document.getElementById('scrape-result');
+    container.style.display = 'block';
+
+    // 数据源标签
+    document.getElementById('scrape-source').textContent = data.source || '未知来源';
+    document.getElementById('scrape-source').className = 'badge ' + (data.source === 'TMDB' ? 'badge-success' : 'badge-warning');
+
+    // 标题
+    document.getElementById('scrape-title').textContent = data.title || data.name || '未知标题';
+
+    // 海报
+    const poster = document.getElementById('scrape-poster');
+    if (data.poster_url) {
+        poster.src = data.poster_url;
+        poster.style.display = 'block';
+    } else {
+        poster.style.display = 'none';
+    }
+
+    // 简介
+    document.getElementById('scrape-overview').textContent = data.overview || '暂无简介';
+
+    // 元数据
+    const meta = document.getElementById('scrape-meta');
+    const metaItems = [];
+    if (data.release_date || data.first_air_date) {
+        metaItems.push('📅 ' + (data.release_date || data.first_air_date));
+    }
+    if (data.vote_average) {
+        metaItems.push('⭐ ' + data.vote_average.toFixed(1) + '/10');
+    }
+    if (data.director) {
+        metaItems.push('🎬 导演: ' + data.director);
+    }
+    if (data.genres && data.genres.length) {
+        metaItems.push('🏷️ ' + data.genres.slice(0, 3).join(', '));
+    }
+    meta.innerHTML = metaItems.map(m => '<span style="margin-right:12px;">' + m + '</span>').join('');
+
+    // 应用状态按钮
+    const applyBtn = document.getElementById('apply-scrape-btn');
+    const actionsDiv = document.getElementById('scrape-actions');
+    if (data.applied && data.applied.poster) {
+        // 已经自动应用了
+        if (data.poster_error && data.poster_error.includes('后台下载')) {
+            actionsDiv.innerHTML = '<span class="badge badge-warning">⏳ 图片下载中，稍后刷新查看</span>';
+        } else {
+            actionsDiv.innerHTML = '<span class="badge badge-success">✅ 已应用</span>';
+        }
+    } else {
+        // 恢复应用按钮
+        actionsDiv.innerHTML = '<button id="apply-scrape-btn" class="btn btn-sm btn-success" onclick="applyScrapeResult()">✅ 应用到Emby</button>';
+    }
+
+    // 滚动到结果区域
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+{% endblock %}

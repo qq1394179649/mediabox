@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.get('Name', '用户详情') }} - Emby管理系统{% endblock %}
+{% block topbar_title %}👤 {{ user.get('Name', '用户详情') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex gap-2 flex-wrap fade-in" style="display:grid; grid-template-columns: auto 1fr; gap:20px;">
+    <!-- 用户头像卡 -->
+    <div class="card" style="width:fit-content;">
+        <div class="card-body text-center" style="padding:32px 40px;">
+            <div class="user-avatar user-avatar-lg" style="margin:0 auto 14px;">
+                {{ user.get('Name', '?')[0] | upper }}
+            </div>
+            <h2 style="font-size:18px;">{{ user.get('Name', '-') }}</h2>
+            <div class="mt-1 d-flex gap-1" style="justify-content:center;">
+                {% if user.get('Policy', {}).get('IsAdministrator') %}
+                <span class="badge badge-danger">管理员</span>
+                {% endif %}
+                {% if user.get('Policy', {}).get('IsDisabled') %}
+                <span class="badge badge-danger">已禁用</span>
+                {% else %}
+                <span class="badge badge-success">正常</span>
+                {% endif %}
+            </div>
+            <p class="text-muted mt-1" style="font-size:11px;word-break:break-all;">{{ user.get('Id', '') }}</p>
+        </div>
+    </div>
+
+    <!-- 用户信息 -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 基本信息</h3>
+            <div class="d-flex gap-1">
+                <a href="{{ url_for('user_policy', user_id=user.get('Id')) }}" class="btn btn-sm btn-secondary">⚙️ 策略</a>
+                <a href="{{ url_for('users_list') }}" class="btn btn-sm btn-secondary">← 返回</a>
+            </div>
+        </div>
+        <div class="card-body no-padding">
+            <table class="data-table">
+                <tr><td class="text-muted" style="width:140px;">用户名</td><td>{{ user.get('Name', '-') }}</td></tr>
+                <tr><td class="text-muted">服务器ID</td><td style="font-family:monospace;font-size:12px;">{{ user.get('ServerId', '-') }}</td></tr>
+                <tr><td class="text-muted">是否有密码</td><td>{{ '是' if user.get('HasPassword') else '否' }}</td></tr>
+                <tr><td class="text-muted">最后登录</td><td>{{ user.get('LastActivityDate', '从未登录') }}</td></tr>
+                <tr>
+                    <td class="text-muted">远程访问</td>
+                    <td>
+                        {% if user.get('Policy', {}).get('EnableRemoteAccess') %}
+                        <span class="badge badge-success">已开启</span>
+                        {% else %}
+                        <span class="badge badge-warning">已关闭</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-muted">播放权限</td>
+                    <td>
+                        {% if user.get('Policy', {}).get('EnableMediaPlayback') %}
+                        <span class="badge badge-success">已开启</span>
+                        {% else %}
+                        <span class="badge badge-danger">已关闭</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-muted">视频转码</td>
+                    <td>
+                        {% if user.get('Policy', {}).get('EnableVideoPlaybackTranscoding') %}
+                        <span class="badge badge-success">已开启</span>
+                        {% else %}
+                        <span class="badge badge-warning">已关闭</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-muted">内容删除</td>
+                    <td>
+                        {% if user.get('Policy', {}).get('EnableContentDeletion') %}
+                        <span class="badge badge-danger">已开启</span>
+                        {% else %}
+                        <span class="badge badge-success">已关闭</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 重置密码 -->
+<div class="card mt-3 fade-in" style="max-width:560px;">
+    <div class="card-header"><h3>🔑 重置密码</h3></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('user_password', user_id=user.get('Id')) }}">
+            <div class="form-group">
+                <label for="new_password">新密码</label>
+                <input type="password" id="new_password" name="new_password" class="form-control"
+                       placeholder="输入新密码" required>
+            </div>
+            <button type="submit" class="btn btn-warning">🔑 重置密码</button>
+        </form>
+    </div>
+</div>
+
+<!-- 危险操作 -->
+<div class="card mt-3 fade-in" style="max-width:560px; border-color: var(--danger);">
+    <div class="card-header" style="border-color: var(--danger);"><h3 class="text-danger">⚠️ 危险操作</h3></div>
+    <div class="card-body">
+        <p class="text-muted mb-2">删除用户将移除该用户的所有数据，此操作不可恢复。</p>
+        <form method="POST" action="{{ url_for('user_delete', user_id=user.get('Id')) }}">
+            <button type="submit" class="btn btn-danger" data-confirm="确认删除用户 {{ user.get('Name') }}？此操作不可恢复！">🗑️ 删除用户</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

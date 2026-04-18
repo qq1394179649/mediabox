@@ -1,0 +1,916 @@
+{% extends "base.html" %}
+
+{% block title %}STRM有效性检查 - Emby管理系统{% endblock %}
+{% block topbar_title %}🔗 STRM有效性检查{% endblock %}
+
+{% block extra_css %}
+<style>
+.strm-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+.strm-controls .form-group {
+    margin-bottom: 0;
+    min-width: 200px;
+}
+.strm-controls select, .strm-controls input {
+    width: 100%;
+}
+.check-progress {
+    display: none;
+    margin-bottom: 20px;
+}
+.progress-bar-container {
+    background: var(--input-bg);
+    border-radius: var(--radius-sm);
+    height: 24px;
+    overflow: hidden;
+    position: relative;
+}
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--primary-light));
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+}
+.progress-text {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.result-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.result-stat {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    text-align: center;
+}
+.result-stat .stat-num {
+    font-size: 28px;
+    font-weight: 800;
+}
+.result-stat .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+.stat-ok .stat-num { color: var(--success); }
+.stat-fail .stat-num { color: var(--danger); }
+.stat-checking .stat-num { color: var(--info); }
+
+.strm-table { width: 100%; }
+.strm-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--card-header-bg);
+    position: sticky;
+    top: 0;
+}
+.strm-table td {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+.strm-table tr:hover { background: var(--row-hover-bg); }
+.strm-url {
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.status-ok { background: rgba(102,187,106,.12); color: var(--success); }
+.status-fail { background: rgba(239,83,80,.12); color: var(--danger); }
+.status-checking { background: rgba(41,182,246,.12); color: var(--info); }
+.status-error { background: rgba(255,167,38,.12); color: var(--warning); }
+
+.item-title {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.check-actions {
+    display: flex;
+    gap: 8px;
+}
+.batch-actions {
+    margin-bottom: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.loading-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.loading-content {
+    background: var(--card-bg);
+    padding: 32px 48px;
+    border-radius: var(--radius-lg);
+    text-align: center;
+}
+.spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 分页区域 */
+.pagination-area {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+.pagination-info {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.pagination-info strong {
+    color: var(--primary);
+}
+
+/* 页码按钮组 */
+.pagination-btns {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.pagination-btns a,
+.pagination-btns span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.pagination-btns a {
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+.pagination-btns a:hover:not(.disabled) {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: rgba(var(--primary-rgb, 77,166,255), 0.08);
+}
+.pagination-btns .page-current {
+    color: #fff;
+    background: var(--primary);
+    border: 1px solid var(--primary);
+    font-weight: 700;
+}
+.pagination-btns .page-ellipsis {
+    color: var(--text-muted);
+    border: none;
+    cursor: default;
+}
+.pagination-btns .page-ellipsis:hover {
+    background: none;
+}
+
+/* 页码跳转 */
+.pagination-jump {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-left: 1px solid var(--border-color);
+    padding-left: 12px;
+    margin-left: 4px;
+}
+.pagination-jump label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+    white-space: nowrap;
+}
+.pagination-jump .page-jump {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.page-input {
+    width: 60px;
+    height: 32px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    padding: 0 6px;
+}
+.page-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <p class="text-muted">检查.strm媒体文件的链接是否可正常访问，支持批量检查</p>
+</div>
+
+<!-- 控制面板 -->
+<div class="strm-controls fade-in">
+    <div class="form-group">
+        <label>媒体库</label>
+        <select id="folder-select" class="form-control">
+            <option value="">全部媒体库</option>
+            {% for folder in media_folders %}
+            <option value="{{ folder.get('Id') }}">{{ folder.get('Name', '未命名') }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>项目类型</label>
+        <select id="type-select" class="form-control">
+            <option value="Movie,Episode">电影 + 剧集</option>
+            <option value="Movie">仅电影</option>
+            <option value="Episode">仅剧集</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>每页数量</label>
+        <select id="limit-select" class="form-control">
+            <option value="10">10条</option>
+            <option value="20">20条</option>
+            <option value="30">30条</option>
+            <option value="40">40条</option>
+            <option value="50">50条</option>
+            <option value="custom">自定义</option>
+            <option value="all">全部</option>
+        </select>
+    </div>
+    <div class="form-group" style="display:none;" id="custom-limit-group">
+        <label>自定义数量</label>
+        <input type="number" id="custom-limit" class="form-control" min="1" max="10000" placeholder="输入1-10000">
+    </div>
+    <div class="form-group" style="align-self: flex-end;">
+        <button id="btn-load" class="btn btn-primary">📥 加载数据</button>
+    </div>
+</div>
+
+<!-- 进度条 -->
+<div id="check-progress" class="check-progress fade-in">
+    <div class="progress-bar-container">
+        <div id="progress-bar" class="progress-bar" style="width: 0%;">0%</div>
+    </div>
+    <p id="progress-text" class="progress-text">准备中...</p>
+</div>
+
+<!-- 结果统计 -->
+<div id="result-summary" class="result-summary fade-in" style="display: none;">
+    <div class="result-stat stat-total">
+        <div class="stat-num" id="stat-total">0</div>
+        <div class="stat-label">总计</div>
+    </div>
+    <div class="result-stat stat-ok">
+        <div class="stat-num" id="stat-ok">0</div>
+        <div class="stat-label">✅ 正常</div>
+    </div>
+    <div class="result-stat stat-fail">
+        <div class="stat-num" id="stat-fail">0</div>
+        <div class="stat-label">❌ 异常</div>
+    </div>
+</div>
+
+<!-- 批量操作 -->
+<div class="batch-actions fade-in">
+    <button id="btn-check-selected" class="btn btn-primary" disabled>🔍 检查选中项</button>
+    <button id="btn-check-all" class="btn btn-secondary" disabled>🔍 检查全部</button>
+    <button id="btn-export" class="btn btn-ghost" disabled>📋 导出结果</button>
+    <span id="selected-count" class="text-muted" style="font-size: 13px;"></span>
+</div>
+
+<!-- 结果表格 -->
+<div class="card fade-in">
+    <div class="card-body no-padding">
+        <div style="max-height: 600px; overflow-y: auto;">
+            <table class="strm-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="check-all"></th>
+                        <th>状态</th>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>STRM URL</th>
+                        <th>HTTP状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="strm-tbody">
+                    <tr>
+                        <td colspan="7" class="text-center text-muted" style="padding: 48px;">
+                            点击「加载数据」获取STRM文件列表
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 分页 -->
+<div id="pagination-area" class="pagination-area" style="display: none;">
+    <div class="pagination-info">
+        共 <strong id="stat-total-pages">0</strong> 页，<strong id="stat-total-items">0</strong> 条数据
+    </div>
+    <div class="pagination-btns" id="pagination-btns"></div>
+    <div class="pagination-jump">
+        <label>跳转到</label>
+        <input type="number" id="page-input" class="page-input" min="1" value="1">
+        <button id="btn-page-jump" class="btn btn-sm btn-primary">跳转</button>
+    </div>
+</div>
+
+<!-- 加载遮罩 -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <p id="loading-text">正在加载...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 全局状态
+let currentPage = 1;
+let totalItems = 0;
+let totalPages = 0;
+let perPage = 100;
+let strmItems = [];
+let checkedUrls = new Map(); // url -> {status, http_code, reason}
+let isChecking = false;
+
+// DOM元素
+const btnLoad = document.getElementById('btn-load');
+const btnCheckSelected = document.getElementById('btn-check-selected');
+const btnCheckAll = document.getElementById('btn-check-all');
+const btnExport = document.getElementById('btn-export');
+const checkAllCheckbox = document.getElementById('check-all');
+const selectedCount = document.getElementById('selected-count');
+const tbody = document.getElementById('strm-tbody');
+const loadingOverlay = document.getElementById('loading-overlay');
+const loadingText = document.getElementById('loading-text');
+const progressDiv = document.getElementById('check-progress');
+const progressBar = document.getElementById('progress-bar');
+const progressText = document.getElementById('progress-text');
+const resultSummary = document.getElementById('result-summary');
+
+// 显示/隐藏加载遮罩
+function showLoading(text = '正在加载...') {
+    loadingText.textContent = text;
+    loadingOverlay.style.display = 'flex';
+}
+function hideLoading() {
+    loadingOverlay.style.display = 'none';
+}
+
+// 显示进度
+function showProgress(current, total, text) {
+    progressDiv.style.display = 'block';
+    const pct = Math.round((current / total) * 100);
+    progressBar.style.width = pct + '%';
+    progressBar.textContent = pct + '%';
+    progressText.textContent = text;
+}
+function hideProgress() {
+    progressDiv.style.display = 'none';
+}
+
+// 更新统计
+function updateStats() {
+    let ok = 0, fail = 0;
+    checkedUrls.forEach(result => {
+        if (result.status === 'ok') ok++;
+        else fail++;
+    });
+    document.getElementById('stat-total').textContent = strmItems.length;
+    document.getElementById('stat-ok').textContent = ok;
+    document.getElementById('stat-fail').textContent = fail;
+    resultSummary.style.display = 'grid';
+}
+
+// 获取选中的项
+function getSelectedItems() {
+    const checkboxes = tbody.querySelectorAll('tbody input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => {
+        const row = cb.closest('tr');
+        return {
+            id: cb.value,
+            title: row.dataset.title || '未知',
+            url: row.dataset.url || '',
+            item_id: row.dataset.id || ''
+        };
+    });
+}
+
+// 更新选中计数
+function updateSelectedCount() {
+    const count = getSelectedItems().length;
+    selectedCount.textContent = count > 0 ? `已选择 ${count} 项` : '';
+    btnCheckSelected.disabled = count === 0 || isChecking;
+}
+
+// 渲染表格
+function renderTable(items) {
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding: 48px;">没有找到STRM文件</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = items.map(item => {
+        const title = item.Name || item.Title || '未知';
+        const type = item.Type === 'Movie' ? '🎬 电影' : '📺 剧集';
+        // 优先使用_play_url（MediaSources中的播放URL），其次用Path（本地.strm路径）
+        const playUrl = item._play_url || item.Path || '';
+        const strmPath = item.Path || '';
+        const saved = checkedUrls.get(playUrl);
+        const checked = !!saved;
+
+        let statusHtml = '<span class="status-badge status-checking">⏳ 待检查</span>';
+        let httpCodeHtml = '-';
+
+        if (checked) {
+            const s = saved;
+            if (s.status === 'ok') {
+                statusHtml = '<span class="status-badge status-ok">✅ 正常</span>';
+                httpCodeHtml = `<span class="text-success">${s.http_code || 'OK'}</span>`;
+            } else if (s.status === 'fail') {
+                statusHtml = '<span class="status-badge status-fail">❌ 失败</span>';
+                httpCodeHtml = `<span class="text-danger">${s.http_code || '-'}</span>`;
+            } else if (s.status === 'timeout') {
+                statusHtml = '<span class="status-badge status-error">⏰ 超时</span>';
+                httpCodeHtml = `<span class="text-warning">超时</span>`;
+            } else {
+                statusHtml = '<span class="status-badge status-error">⚠️ 错误</span>';
+                httpCodeHtml = `<span class="text-warning">${s.reason || '错误'}</span>`;
+            }
+        }
+
+        return `<tr data-id="${item.Id}" data-title="${title}" data-url="${playUrl}" data-strm-path="${strmPath}">
+            <td><input type="checkbox" value="${item.Id}" onchange="updateSelectedCount()"></td>
+            <td>${statusHtml}</td>
+            <td class="item-title" title="${title}">${title}</td>
+            <td>${type}</td>
+            <td class="strm-url" title="${playUrl}">${playUrl}</td>
+            <td>${httpCodeHtml}</td>
+            <td>
+                <button class="btn btn-sm btn-ghost" onclick="checkSingle('${item.Id}', '${encodeURIComponent(playUrl)}')" ${checked ? 'disabled' : ''}>
+                    ${checked ? '已检查' : '🔍'}
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    // 更新全选状态
+    checkAllCheckbox.checked = items.length > 0 && tbody.querySelectorAll('tbody input[type="checkbox"]').length === items.length;
+}
+
+// 加载STRM数据
+async function loadStrmData() {
+    const folderId = document.getElementById('folder-select').value;
+    const itemTypes = document.getElementById('type-select').value;
+    let limitSelect = document.getElementById('limit-select').value;
+    let limit;
+
+    // 处理"全部"选项和自定义数量
+    if (limitSelect === 'all') {
+        limit = 999999;  // 使用一个大数字作为"全部"
+    } else if (document.getElementById('custom-limit-group').style.display !== 'none') {
+        limit = parseInt(document.getElementById('custom-limit').value) || 50;
+    } else {
+        limit = parseInt(limitSelect);
+    }
+
+    perPage = limit;
+    currentPage = 1;  // 重置到第一页
+
+    showLoading('正在获取STRM文件列表...');
+
+    try {
+        const params = new URLSearchParams({
+            parent_id: folderId,
+            item_types: itemTypes,
+            page: currentPage,
+            limit: limit
+        });
+
+        const resp = await fetch(`/api/strm/items?${params}`);
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('加载失败: ' + data.error);
+            return;
+        }
+
+        strmItems = data.Items || [];
+        totalItems = data.TotalRecordCount || 0;
+        totalPages = limitSelect === 'all' ? 1 : Math.ceil(totalItems / perPage);
+
+        renderTable(strmItems);
+
+        // 启用按钮
+        btnCheckAll.disabled = strmItems.length === 0;
+        btnExport.disabled = strmItems.length === 0;
+
+        // 更新统计
+        updateStats();
+
+        // 更新分页信息
+        updatePagination();
+
+    } catch (e) {
+        alert('加载失败: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+// 生成页码数组（智能省略）
+function getPageNumbers(current, total, delta = 2) {
+    const pages = [];
+    const left = current - delta;
+    const right = current + delta;
+
+    // 始终显示第一页
+    pages.push(1);
+
+    if (left > 2) {
+        pages.push('...');
+    }
+
+    for (let i = Math.max(2, left); i <= Math.min(total - 1, right); i++) {
+        pages.push(i);
+    }
+
+    if (right < total - 1) {
+        pages.push('...');
+    }
+
+    if (total > 1) {
+        pages.push(total);
+    }
+
+    return pages;
+}
+
+// 更新分页控件
+function updatePagination() {
+    const paginationArea = document.getElementById('pagination-area');
+    const paginationBtns = document.getElementById('pagination-btns');
+    const pageInput = document.getElementById('page-input');
+
+    if (totalPages <= 1) {
+        paginationArea.style.display = 'none';
+        return;
+    }
+
+    // 更新统计信息
+    document.getElementById('stat-total-pages').textContent = totalPages;
+    document.getElementById('stat-total-items').textContent = totalItems;
+
+    // 显示分页区域
+    paginationArea.style.display = 'flex';
+
+    // 页码输入框
+    pageInput.value = currentPage;
+    pageInput.max = totalPages;
+
+    // 渲染页码按钮
+    paginationBtns.innerHTML = '';
+    const pages = getPageNumbers(currentPage, totalPages);
+
+    // 上一页
+    if (currentPage > 1) {
+        const prevBtn = document.createElement('a');
+        prevBtn.href = '#';
+        prevBtn.textContent = '‹';
+        prevBtn.title = '上一页';
+        prevBtn.onclick = () => { currentPage--; loadStrmData(); return false; };
+        paginationBtns.appendChild(prevBtn);
+    } else {
+        const prevSpan = document.createElement('span');
+        prevSpan.className = 'disabled';
+        prevSpan.textContent = '‹';
+        prevSpan.title = '上一页';
+        paginationBtns.appendChild(prevSpan);
+    }
+
+    // 页码数字
+    pages.forEach(p => {
+        if (p === '...') {
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'page-ellipsis';
+            ellipsis.textContent = '...';
+            paginationBtns.appendChild(ellipsis);
+        } else {
+            const btn = document.createElement(p === currentPage ? 'span' : 'a');
+            if (p === currentPage) {
+                btn.className = 'page-current';
+            } else {
+                btn.href = '#';
+                btn.onclick = () => { currentPage = p; loadStrmData(); return false; };
+            }
+            btn.textContent = p;
+            paginationBtns.appendChild(btn);
+        }
+    });
+
+    // 下一页
+    if (currentPage < totalPages) {
+        const nextBtn = document.createElement('a');
+        nextBtn.href = '#';
+        nextBtn.textContent = '›';
+        nextBtn.title = '下一页';
+        nextBtn.onclick = () => { currentPage++; loadStrmData(); return false; };
+        paginationBtns.appendChild(nextBtn);
+    } else {
+        const nextSpan = document.createElement('span');
+        nextSpan.className = 'disabled';
+        nextSpan.textContent = '›';
+        nextSpan.title = '下一页';
+        paginationBtns.appendChild(nextSpan);
+    }
+}
+
+// 页码跳转
+function setupPageJump() {
+    const pageInput = document.getElementById('page-input');
+    const btnJump = document.getElementById('btn-page-jump');
+
+    btnJump.onclick = () => {
+        const page = parseInt(pageInput.value);
+        if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+            loadStrmData();
+        } else {
+            alert(`请输入 1-${totalPages} 之间的页码`);
+        }
+    };
+
+    pageInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+            btnJump.click();
+        }
+    };
+}
+
+// 检查单个URL
+async function checkSingle(itemId, encodedUrl) {
+    const url = decodeURIComponent(encodedUrl);
+    const row = tbody.querySelector(`tr[data-id="${itemId}"]`);
+
+    try {
+        const resp = await fetch('/api/strm/check-url', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url, item_id: itemId})
+        });
+        const result = await resp.json();
+
+        checkedUrls.set(url, result);
+
+        // 更新行
+        const statusCell = row.cells[1];
+        const httpCell = row.cells[5];
+
+        if (result.status === 'ok') {
+            statusCell.innerHTML = '<span class="status-badge status-ok">✅ 正常</span>';
+            httpCell.innerHTML = `<span class="text-success">${result.http_code || 'OK'}</span>`;
+        } else {
+            statusCell.innerHTML = '<span class="status-badge status-fail">❌ 失败</span>';
+            httpCell.innerHTML = `<span class="text-danger">${result.http_code || '-'}</span><br><small class="text-muted">${result.reason || ''}</small>`;
+        }
+
+        // 禁用检查按钮
+        const btn = row.querySelector('button');
+        btn.disabled = true;
+        btn.textContent = '已检查';
+
+        updateStats();
+
+    } catch (e) {
+        alert('检查失败: ' + e.message);
+    }
+}
+
+// 批量检查
+async function checkBatch(items) {
+    if (items.length === 0 || isChecking) return;
+
+    isChecking = true;
+    btnCheckSelected.disabled = true;
+    btnCheckAll.disabled = true;
+
+    // 准备检查数据：包含url和item_id
+    const checkItems = items
+        .map(i => ({ url: i.url, item_id: i.id }))
+        .filter(i => i.url && !checkedUrls.has(i.url));
+
+    if (checkItems.length === 0) {
+        alert('所选项目没有可检查的URL（或都已检查过）');
+        isChecking = false;
+        btnCheckSelected.disabled = false;
+        btnCheckAll.disabled = false;
+        return;
+    }
+
+    showProgress(0, checkItems.length, `正在检查 ${checkItems.length} 个文件...`);
+
+    try {
+        const resp = await fetch('/api/strm/check-batch', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({items: checkItems, timeout: 15})
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('批量检查失败: ' + data.error);
+            return;
+        }
+
+        // 更新结果到表格
+        data.results.forEach(result => {
+            checkedUrls.set(result.url, result);
+
+            // 找到对应行并更新（通过data-url属性匹配）
+            const row = tbody.querySelector(`tr[data-url="${CSS.escape(result.url)}"]`);
+            if (row) {
+                const statusCell = row.cells[1];
+                const httpCell = row.cells[5];
+
+                if (result.status === 'ok') {
+                    statusCell.innerHTML = '<span class="status-badge status-ok">✅ 正常</span>';
+                    httpCell.innerHTML = `<span class="text-success">${result.http_code || 'OK'}</span>`;
+                } else if (result.status === 'fail') {
+                    statusCell.innerHTML = '<span class="status-badge status-fail">❌ 失败</span>';
+                    httpCell.innerHTML = `<span class="text-danger">${result.http_code || '-'}</span>`;
+                } else if (result.status === 'timeout') {
+                    statusCell.innerHTML = '<span class="status-badge status-error">⏰ 超时</span>';
+                    httpCell.innerHTML = `<span class="text-warning">超时</span>`;
+                } else {
+                    statusCell.innerHTML = '<span class="status-badge status-error">⚠️ 错误</span>';
+                    httpCell.innerHTML = `<span class="text-warning">${result.reason || '错误'}</span>`;
+                }
+            }
+        });
+
+        showProgress(urls.length, urls.length, `检查完成！正常: ${data.ok}, 异常: ${data.fail}`);
+        updateStats();
+
+        setTimeout(hideProgress, 3000);
+
+    } catch (e) {
+        alert('批量检查失败: ' + e.message);
+    } finally {
+        isChecking = false;
+        btnCheckSelected.disabled = false;
+        btnCheckAll.disabled = false;
+    }
+}
+
+// 导出结果
+function exportResults() {
+    let csv = '\uFEFF'; // BOM for Excel
+    csv += '名称,类型,STRM路径,播放URL,状态,HTTP状态,原因\n';
+
+    strmItems.forEach(item => {
+        const title = item.Name || item.Title || '';
+        const type = item.Type === 'Movie' ? '电影' : '剧集';
+        const strmPath = item.Path || '';
+        const playUrl = item._play_url || '';
+        const result = checkedUrls.get(playUrl);
+
+        let status = '未检查';
+        let httpCode = '';
+        let reason = '';
+
+        if (result) {
+            status = result.status === 'ok' ? '正常' : '异常';
+            httpCode = result.http_code || '';
+            reason = result.reason || '';
+        }
+
+        csv += `"${title}","${type}","${strmPath}","${playUrl}","${status}","${httpCode}","${reason}"\n`;
+    });
+
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `strm检查结果_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+}
+
+// 事件绑定
+setupPageJump();  // 初始化页码跳转
+
+// 每页数量选择事件
+document.getElementById('limit-select').addEventListener('change', function() {
+    const customGroup = document.getElementById('custom-limit-group');
+    if (this.value === 'custom') {
+        customGroup.style.display = 'block';
+    } else {
+        customGroup.style.display = 'none';
+    }
+});
+
+// 自定义数量输入框事件
+document.getElementById('custom-limit').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        btnLoad.click();
+    }
+});
+
+btnLoad.addEventListener('click', () => {
+    currentPage = 1;
+    loadStrmData();
+});
+
+btnCheckSelected.addEventListener('click', () => {
+    const selected = getSelectedItems();
+    checkBatch(selected);
+});
+
+btnCheckAll.addEventListener('click', () => {
+    checkBatch(strmItems.map(item => ({
+        id: item.Id,
+        title: item.Name || item.Title || '',
+        // 优先使用_play_url（MediaSources中的播放URL），其次用Path
+        url: item._play_url || item.Path || ''
+    })));
+});
+
+btnExport.addEventListener('click', exportResults);
+
+checkAllCheckbox.addEventListener('change', () => {
+    const checkboxes = tbody.querySelectorAll('tbody input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = checkAllCheckbox.checked);
+    updateSelectedCount();
+});
+
+// 初始加载提示
+console.log('STRM检查工具已就绪');
+</script>
+{% endblock %}

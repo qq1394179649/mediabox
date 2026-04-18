@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+
+{% block title %}权限模板 - MediaBox{% endblock %}
+{% block topbar_title %}🎭 权限模板管理{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- 创建模板 -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3>➕ 创建权限模板</h3>
+        </div>
+        <div class="card-body">
+            <form id="create-template-form">
+                <div class="template-form-grid">
+                    <!-- 基本信息 -->
+                    <div class="form-section">
+                        <h4 class="section-title">基本信息</h4>
+                        <div class="form-group">
+                            <label class="text-muted" style="font-size: 12px;">模板名称</label>
+                            <input type="text" name="name" class="form-control" placeholder="如：高级用户" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="text-muted" style="font-size: 12px;">描述</label>
+                            <input type="text" name="description" class="form-control" placeholder="模板说明">
+                        </div>
+                    </div>
+                    
+                    <!-- MediaBox权限 -->
+                    <div class="form-section">
+                        <h4 class="section-title">MediaBox权限</h4>
+                        <div class="perm-checkboxes">
+                            <label class="perm-checkbox">
+                                <input type="checkbox" name="can_view" checked>
+                                <span>浏览媒体库</span>
+                            </label>
+                            <label class="perm-checkbox">
+                                <input type="checkbox" name="can_download">
+                                <span>下载媒体</span>
+                            </label>
+                            <label class="perm-checkbox">
+                                <input type="checkbox" name="can_manage">
+                                <span>媒体管理</span>
+                            </label>
+                            <label class="perm-checkbox">
+                                <input type="checkbox" name="can_admin">
+                                <span>系统管理</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Emby用户策略 -->
+                    <div class="form-section full-width">
+                        <h4 class="section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+                            </svg>
+                            Emby用户策略
+                        </h4>
+                        <div class="emby-perm-grid">
+                            <!-- 用户状态 -->
+                            <div class="emby-perm-group">
+                                <span class="perm-group-label">用户状态</span>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_is_admin">
+                                    <span>管理员</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_is_hidden">
+                                    <span>隐藏用户</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_is_disabled">
+                                    <span>禁用账户</span>
+                                </label>
+                            </div>
+                            
+                            <!-- 转码权限 -->
+                            <div class="emby-perm-group">
+                                <span class="perm-group-label">转码权限</span>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_video_transcoding" checked>
+                                    <span>视频转码</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_audio_transcoding" checked>
+                                    <span>音频转码</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_remuxing" checked>
+                                    <span>直接流(Remuxing)</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_media_conversion">
+                                    <span>媒体转换</span>
+                                </label>
+                            </div>
+                            
+                            <!-- 访问权限 -->
+                            <div class="emby-perm-group">
+                                <span class="perm-group-label">访问权限</span>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_remote_access" checked>
+                                    <span>远程访问</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_live_tv">
+                                    <span>电视直播</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_media_playback" checked>
+                                    <span>媒体播放</span>
+                                </label>
+                            </div>
+                            
+                            <!-- 内容权限 -->
+                            <div class="emby-perm-group">
+                                <span class="perm-group-label">内容权限</span>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_content_downloading" checked>
+                                    <span>内容下载</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_subtitle_download" checked>
+                                    <span>字幕下载</span>
+                                </label>
+                                <label class="perm-checkbox">
+                                    <input type="checkbox" name="emby_content_deletion">
+                                    <span>内容删除</span>
+                                </label>
+                            </div>
+                            
+                            <!-- 码率限制 -->
+                            <div class="emby-perm-group">
+                                <span class="perm-group-label">码率限制</span>
+                                <div class="bitrate-input">
+                                    <input type="number" name="emby_bitrate_limit" class="form-control" 
+                                           placeholder="0=不限制" min="0" max="1000000" value="0" style="width: 120px;">
+                                    <span class="text-muted" style="font-size: 12px;">Kbps</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">创建模板</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 模板列表 -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 权限模板列表</h3>
+            <span class="badge badge-secondary">{{ templates|length }} 个</span>
+        </div>
+        <div class="card-body no-padding">
+            {% if templates %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>模板名称</th>
+                            <th>描述</th>
+                            <th>MediaBox权限</th>
+                            <th>Emby转码</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in templates %}
+                        <tr data-template-id="{{ t.id }}">
+                            <td>
+                                <strong>{{ t.name }}</strong>
+                            </td>
+                            <td>{{ t.description or '-' }}</td>
+                            <td>
+                                {% set perms = t.permissions|from_json %}
+                                <span class="perm-badge {{ 'active' if perms.can_view }}">浏览</span>
+                                <span class="perm-badge {{ 'active' if perms.can_download }}">下载</span>
+                                <span class="perm-badge {{ 'active' if perms.can_manage }}">管理</span>
+                                <span class="perm-badge {{ 'active' if perms.can_admin }}">系统</span>
+                            </td>
+                            <td>
+                                {% if perms.emby %}
+                                    <span class="perm-badge {{ 'active' if perms.emby.video_transcoding }}" title="视频转码">视频</span>
+                                    <span class="perm-badge {{ 'active' if perms.emby.audio_transcoding }}" title="音频转码">音频</span>
+                                    <span class="perm-badge {{ 'active' if perms.emby.remuxing }}" title="直接流">Remux</span>
+                                    {% if perms.emby.bitrate_limit and perms.emby.bitrate_limit > 0 %}
+                                        <span class="perm-badge warning" title="码率限制">{{ perms.emby.bitrate_limit }}K</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted" style="font-size: 12px;">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if t.is_default %}
+                                    <span class="badge badge-primary">默认</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">普通</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    {% if not t.is_default %}
+                                        <button type="button" class="btn btn-sm btn-ghost set-default-btn" data-id="{{ t.id }}" title="设为默认">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                            </svg>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-ghost text-danger delete-template-btn" data-id="{{ t.id }}" title="删除">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                            </svg>
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted" style="font-size: 12px;">不可删除</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding: 48px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <p class="text-muted mt-2">暂无权限模板</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.template-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form-section.full-width {
+    grid-column: 1 / -1;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.emby-perm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.emby-perm-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.perm-group-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.perm-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.perm-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 10px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.perm-checkbox:hover {
+    background: var(--bg-hover);
+}
+
+.perm-checkbox input {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--primary);
+}
+
+.bitrate-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bitrate-input input {
+    text-align: center;
+}
+
+.form-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.perm-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    margin-right: 4px;
+}
+
+.perm-badge.active {
+    background: var(--primary);
+    color: white;
+}
+
+.perm-badge.warning {
+    background: var(--warning);
+    color: white;
+}
+
+.btn-group {
+    display: flex;
+    gap: 4px;
+}
+
+.btn-ghost {
+    background: transparent;
+    border: none;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+
+.btn-ghost:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.btn-ghost.text-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.set-default-btn:hover {
+    color: var(--warning);
+}
+
+.text-muted {
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .template-form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .emby-perm-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+
+<script>
+// 创建模板
+document.getElementById('create-template-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const originalText = btn.textContent;
+    
+    btn.disabled = true;
+    btn.textContent = '创建中...';
+    
+    try {
+        const formData = new FormData(form);
+        const permissions = {
+            // MediaBox权限
+            can_view: formData.has('can_view'),
+            can_download: formData.has('can_download'),
+            can_manage: formData.has('can_manage'),
+            can_admin: formData.has('can_admin'),
+            // Emby用户策略
+            emby: {
+                is_admin: formData.has('emby_is_admin'),
+                is_hidden: formData.has('emby_is_hidden'),
+                is_disabled: formData.has('emby_is_disabled'),
+                video_transcoding: formData.has('emby_video_transcoding'),
+                audio_transcoding: formData.has('emby_audio_transcoding'),
+                remuxing: formData.has('emby_remuxing'),
+                media_conversion: formData.has('emby_media_conversion'),
+                remote_access: formData.has('emby_remote_access'),
+                live_tv: formData.has('emby_live_tv'),
+                media_playback: formData.has('emby_media_playback'),
+                content_downloading: formData.has('emby_content_downloading'),
+                subtitle_download: formData.has('emby_subtitle_download'),
+                content_deletion: formData.has('emby_content_deletion'),
+                bitrate_limit: parseInt(formData.get('emby_bitrate_limit')) || 0
+            }
+        };
+        
+        const resp = await fetch('/api/templates', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                name: form.name.value,
+                description: form.description.value,
+                permissions: permissions
+            })
+        });
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+            flash('模板创建成功', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            flash(data.error || '创建失败', 'danger');
+        }
+    } catch (err) {
+        flash('请求失败', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+});
+
+// 设为默认
+document.querySelectorAll('.set-default-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('确定要将此模板设为默认吗？')) return;
+        
+        try {
+            const resp = await fetch(`/api/templates/${btn.dataset.id}/set-default`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            
+            const data = await resp.json();
+            
+            if (data.success) {
+                flash('已设为默认模板', 'success');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                flash(data.error || '设置失败', 'danger');
+            }
+        } catch (err) {
+            flash('请求失败', 'danger');
+        }
+    });
+});
+
+// 删除模板
+document.querySelectorAll('.delete-template-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('确定要删除此模板吗？')) return;
+        
+        try {
+            const resp = await fetch(`/api/templates/${btn.dataset.id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            
+            const data = await resp.json();
+            
+            if (data.success) {
+                btn.closest('tr').remove();
+                flash('模板已删除', 'success');
+            } else {
+                flash(data.error || '删除失败', 'danger');
+            }
+        } catch (err) {
+            flash('请求失败', 'danger');
+        }
+    });
+});
+</script>
+{% endblock %}

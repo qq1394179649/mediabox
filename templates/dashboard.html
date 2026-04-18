@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}仪表盘 - MediaBox{% endblock %}
+{% block topbar_title %}仪表盘{% endblock %}
+
+{% block content %}
+<!-- ================================================
+     DASHBOARD — Premium & Dignified Design
+     ================================================ -->
+
+<!-- Page Hero Greeting -->
+<div class="dash-hero fade-in">
+    <div class="dash-hero-inner">
+        <div class="dash-greeting">
+            <h2 class="greeting-title">欢迎回来</h2>
+            <p class="greeting-sub">这里是您的 Emby 媒体库总览</p>
+        </div>
+        {% if playing_sessions %}
+        <div class="dash-live-badge">
+            <span class="live-dot"></span>
+            <span>{{ playing_sessions|length }} 路正在播放</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-grid fade-in" style="animation-delay:.05s">
+    <div class="stat-card stat-card-movie">
+        <div class="stat-card-inner">
+            <div class="stat-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>
+                </svg>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value">{{ item_counts.get('MovieCount', 0) | format_number }}</div>
+                <div class="stat-label">电影</div>
+            </div>
+        </div>
+        <div class="stat-card-accent"></div>
+    </div>
+
+    <div class="stat-card stat-card-series">
+        <div class="stat-card-inner">
+            <div class="stat-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                </svg>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value">{{ item_counts.get('SeriesCount', 0) | format_number }}</div>
+                <div class="stat-label">剧集</div>
+            </div>
+        </div>
+        <div class="stat-card-accent"></div>
+    </div>
+
+    <div class="stat-card stat-card-episode">
+        <div class="stat-card-inner">
+            <div class="stat-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value">{{ item_counts.get('EpisodeCount', 0) | format_number }}</div>
+                <div class="stat-label">集数</div>
+            </div>
+        </div>
+        <div class="stat-card-accent"></div>
+    </div>
+
+    <div class="stat-card stat-card-music">
+        <div class="stat-card-inner">
+            <div class="stat-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                </svg>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value">{{ item_counts.get('SongCount', 0) | format_number }}</div>
+                <div class="stat-label">歌曲</div>
+            </div>
+        </div>
+        <div class="stat-card-accent"></div>
+    </div>
+
+    <div class="stat-card stat-card-user">
+        <div class="stat-card-inner">
+            <div class="stat-card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value">{{ users|length }}</div>
+                <div class="stat-label">用户</div>
+            </div>
+        </div>
+        <div class="stat-card-accent"></div>
+    </div>
+</div>
+
+<!-- Now Playing Banner -->
+{% if playing_sessions %}
+<div class="now-playing-strip fade-in" style="animation-delay:.1s">
+    <div class="nps-indicator">
+        <span class="nps-dot"></span>
+        <span class="nps-dot nps-dot-delay"></span>
+        <span class="nps-dot nps-dot-delay2"></span>
+    </div>
+    <div class="nps-content">
+        {% for s in playing_sessions[:4] %}
+        <div class="nps-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span class="nps-title">{{ s.get('NowPlayingItem', {}).get('Name', '未知') }}</span>
+            <span class="nps-user">{{ s.get('UserName', '') }}</span>
+        </div>
+        {% if not loop.last %}<span class="nps-sep">|</span>{% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Main Content Grid -->
+<div class="dash-main-grid fade-in" style="animation-delay:.15s">
+    <!-- Left Column -->
+    <div class="dash-col-main">
+
+        <!-- Quick Actions -->
+        <div class="dash-section">
+            <div class="dash-section-header">
+                <h3 class="dash-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                    快捷操作
+                </h3>
+            </div>
+            <div class="dash-section-body">
+                <div class="quick-actions-grid">
+                    <a href="{{ url_for('library_refresh') }}" class="qa-tile qa-tile-refresh" onclick="event.preventDefault();this.querySelector('form').submit();">
+                        <form method="POST" action="{{ url_for('library_refresh') }}" style="display:none;" data-confirm="确认刷新整个媒体库？"></form>
+                        <div class="qa-tile-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                            </svg>
+                        </div>
+                        <span class="qa-tile-label">刷新媒体库</span>
+                    </a>
+                    <a href="{{ url_for('library_items') }}" class="qa-tile qa-tile-browse">
+                        <div class="qa-tile-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                            </svg>
+                        </div>
+                        <span class="qa-tile-label">浏览媒体</span>
+                    </a>
+                    <a href="{{ url_for('users_list') }}" class="qa-tile qa-tile-users">
+                        <div class="qa-tile-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+                            </svg>
+                        </div>
+                        <span class="qa-tile-label">用户管理</span>
+                    </a>
+                    <a href="{{ url_for('devices_page') }}" class="qa-tile qa-tile-devices">
+                        <div class="qa-tile-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                            </svg>
+                        </div>
+                        <span class="qa-tile-label">在线设备</span>
+                    </a>
+                    <a href="{{ url_for('system_info') }}" class="qa-tile qa-tile-system">
+                        <div class="qa-tile-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                            </svg>
+                        </div>
+                        <span class="qa-tile-label">系统信息</span>
+                    </a>
+                    <a href="{{ url_for('app_settings') }}" class="qa-tile qa-tile-settings">
+                        <div class="qa-tile-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                            </svg>
+                        </div>
+                        <span class="qa-tile-label">应用设置</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Added -->
+        {% if latest_items %}
+        <div class="dash-section">
+            <div class="dash-section-header">
+                <h3 class="dash-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    最近添加
+                </h3>
+                <a href="{{ url_for('library_items') }}" class="dash-section-link">查看全部 →</a>
+            </div>
+            <div class="dash-section-body">
+                <div class="latest-grid">
+                    {% for item in latest_items %}
+                    <a href="{{ url_for('library_item_detail', item_id=item.get('Id')) }}" class="latest-card">
+                        <div class="latest-poster">
+                            {% if item.get('ImageTags', {}).get('Primary') %}
+                            <img src="{{ emby_server_url }}/emby/Items/{{ item.get('Id') }}/Images/Primary?api_key={{ emby_api_key }}&maxWidth=300"
+                                 alt="{{ item.get('Name', '') }}" loading="lazy">
+                            {% else %}
+                            <div class="latest-poster-placeholder">
+                                {% set itype = item.get('Type', '') %}
+                                {% if itype == 'Movie' %}<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/></svg>{% elif itype == 'Series' %}<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 7 16 12 23 17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>{% else %}<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>{% endif %}
+                            </div>
+                            {% endif %}
+                            <div class="latest-type-tag">
+                                {% set itype = item.get('Type', '') %}
+                                {% if itype == 'Movie' %}电影{% elif itype == 'Series' %}剧集{% elif itype == 'MusicAlbum' %}专辑{% elif itype == 'Book' %}书籍{% else %}{{ itype }}{% endif %}
+                            </div>
+                            {% if item.get('ProductionYear') %}
+                            <div class="latest-year-tag">{{ item.get('ProductionYear') }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="latest-info">
+                            <div class="latest-title">{{ item.get('Name', '未命名') }}</div>
+                            {% if item.get('CommunityRating') %}
+                            <div class="latest-rating">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                {{ "%.1f"|format(item.get('CommunityRating', 0)) }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column -->
+    <div class="dash-col-side">
+
+        <!-- System Info -->
+        <div class="dash-section">
+            <div class="dash-section-header">
+                <h3 class="dash-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    系统概览
+                </h3>
+                {% if system_info %}
+                <span class="status-chip status-chip-online">在线</span>
+                {% else %}
+                <span class="status-chip status-chip-offline">离线</span>
+                {% endif %}
+            </div>
+            <div class="dash-section-body no-padding">
+                {% if system_info %}
+                <div class="sys-info-list">
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">服务器</span>
+                        <span class="sys-info-val">{{ system_info.get('ServerName', '-') }}</span>
+                    </div>
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">版本</span>
+                        <span class="sys-info-val"><code>{{ system_info.get('Version', '-') }}</code></span>
+                    </div>
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">系统</span>
+                        <span class="sys-info-val sys-info-val-wrap">{{ system_info.get('OperatingSystem', '-') }}</span>
+                    </div>
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">架构</span>
+                        <span class="sys-info-val"><code>{{ system_info.get('Architecture', '-') }}</code></span>
+                    </div>
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">内部地址</span>
+                        <span class="sys-info-val"><a href="{{ system_info.get('LocalAddress', emby_server_url) }}" target="_blank" class="sys-link">{{ system_info.get('LocalAddress', emby_server_url) | replace('http://', '') | replace('https://', '') }}</a></span>
+                    </div>
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">外部地址</span>
+                        {% set wan_address = system_info.get('WanAddress', '') %}
+                        {% if wan_address %}
+                        <span class="sys-info-val"><a href="{{ wan_address }}" target="_blank" class="sys-link">{{ wan_address | replace('http://', '') | replace('https://', '') }}</a></span>
+                        {% else %}
+                        <span class="sys-info-val sys-info-val-muted">未配置</span>
+                        {% endif %}
+                    </div>
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">启动向导</span>
+                        <span class="sys-info-val">
+                            {% if setup_wizard_complete %}
+                            <span class="status-chip status-chip-online" style="font-size:11px;padding:2px 8px;">已完成</span>
+                            {% else %}
+                            <a href="{{ url_for('app_settings') }}" class="status-chip status-chip-offline" style="font-size:11px;padding:2px 8px;">未完成</a>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">媒体库</span>
+                        <span class="sys-info-val"><strong>{{ total_items_in_folders | format_number }}</strong> 项</span>
+                    </div>
+                    <div class="sys-info-row">
+                        <span class="sys-info-key">用户</span>
+                        <div class="sys-info-badges">
+                            <span class="sys-badge sys-badge-green">{{ active_user_count }} 活跃</span>
+                            {% if admin_count > 0 %}<span class="sys-badge sys-badge-amber">{{ admin_count }} 管理员</span>{% endif %}
+                            {% if disabled_user_count > 0 %}<span class="sys-badge sys-badge-gray">{{ disabled_user_count }} 停用</span>{% endif %}
+                        </div>
+                    </div>
+
+                </div>
+                {% else %}
+                <div class="sys-offline-msg">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".3">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <p>无法连接至 Emby 服务器</p>
+                    <a href="{{ url_for('app_settings') }}" class="btn btn-sm btn-primary">前往配置</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Media Distribution -->
+        {% if media_distribution %}
+        <div class="dash-section">
+            <div class="dash-section-header">
+                <h3 class="dash-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    媒体分布
+                </h3>
+                <span class="dash-section-meta">共 {{ total_media | format_number }} 项</span>
+            </div>
+            <div class="dash-section-body">
+                <div class="media-dist-chart">
+                    {% for item in media_distribution %}
+                    {% if item.label != '集数' and item.label != '歌曲' %}
+                    <div class="dist-row">
+                        <span class="dist-label">{{ item.label }}</span>
+                        <div class="dist-bar-track">
+                            <div class="dist-bar-fill" style="width:{% if total_media > 0 %}{{ (item.count / total_media * 100)|round(1) }}{% else %}0{% endif %}%; background:{{ item.color }};"></div>
+                        </div>
+                        <span class="dist-count">{{ item.count | format_number }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="dist-legend">
+                    {% for item in media_distribution[:4] %}
+                    <div class="dist-legend-item">
+                        <span class="dist-legend-dot" style="background:{{ item.color }};"></span>
+                        <span class="dist-legend-label">{{ item.label }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Library Folders -->
+        <div class="dash-section">
+            <div class="dash-section-header">
+                <h3 class="dash-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                    </svg>
+                    媒体库
+                </h3>
+                <form method="POST" action="{{ url_for('library_refresh') }}" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-ghost" data-confirm="确认刷新整个媒体库？" style="font-size:12px;padding:4px 10px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                        刷新
+                    </button>
+                </form>
+            </div>
+            <div class="dash-section-body no-padding">
+                {% if media_folders %}
+                <div class="library-list">
+                    {% for folder in media_folders %}
+                    <a href="{{ url_for('library_items', parent_id=folder.get('Id')) }}" class="library-item">
+                        <div class="lib-item-icon">
+                            {% set ctype = folder.get('CollectionType', '') %}
+                            {% if ctype == 'movies' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/></svg>{% elif ctype == 'tvshows' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 7 16 12 23 17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>{% elif ctype == 'music' %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>{% else %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>{% endif %}
+                        </div>
+                        <span class="lib-item-name">{{ folder.get('Name', '未命名') }}</span>
+                        <span class="lib-item-count">
+                            {% set fid = folder.get('Id') %}
+                            {% if folder_counts and fid in folder_counts %}{{ folder_counts[fid] }}{% elif folder.get('ChildCount') is not none %}{{ folder.ChildCount }}{% else %}-{% endif %}
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="sys-offline-msg" style="padding:32px 20px">
+                    <p style="color:var(--text-muted);font-size:13px">暂无媒体库数据</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

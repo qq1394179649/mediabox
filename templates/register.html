@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+
+{% block title %}注册 - MediaBox{% endblock %}
+
+{% block login_content %}
+<div class="login-container">
+    <div class="login-card fade-in">
+        <div class="register-header">
+            <div class="logo-icon">🎬</div>
+            <h1>创建账户</h1>
+            <p class="subtitle">加入 MediaBox 媒体管理系统</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} fade-in">
+            {% if category == 'success' %}✓{% elif category == 'danger' %}✕{% elif category == 'warning' %}⚠{% else %}ℹ{% endif %}
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form id="register-form" method="POST" class="register-form">
+            <!-- 邀请码 -->
+            <div class="form-group">
+                <label for="invite_code">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    邀请码 <span class="text-danger">*</span>
+                </label>
+                <div class="input-with-icon">
+                    <input type="text" id="invite_code" name="invite_code" class="form-control" 
+                           placeholder="输入8位邀请码" required value="{{ invite_code or '' }}"
+                           maxlength="20" style="text-transform: uppercase;" autocomplete="off">
+                    <span id="invite-status" class="input-status"></span>
+                </div>
+                <small id="invite-hint" class="text-muted">联系管理员获取邀请码</small>
+            </div>
+
+            <!-- 用户名 -->
+            <div class="form-group">
+                <label for="username">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;">
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    用户名 <span class="text-danger">*</span>
+                </label>
+                <div class="input-with-icon">
+                    <input type="text" id="username" name="username" class="form-control" 
+                           placeholder="3-20个字符，字母数字下划线" required value="{{ username or '' }}"
+                           pattern="[a-zA-Z0-9_]{3,20}" maxlength="20" autocomplete="username">
+                    <span id="username-status" class="input-status"></span>
+                </div>
+                <small class="text-muted">登录时使用的账户名</small>
+            </div>
+
+            <!-- 显示名称 -->
+            <div class="form-group">
+                <label for="display_name">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;">
+                        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                    </svg>
+                    显示名称
+                </label>
+                <input type="text" id="display_name" name="display_name" class="form-control" 
+                       placeholder="可选，用于展示的名称" value="{{ display_name or '' }}"
+                       maxlength="50" autocomplete="name">
+                <small class="text-muted">其他人看到的名字，留空则使用用户名</small>
+            </div>
+
+            <!-- 密码 -->
+            <div class="form-group">
+                <label for="password">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    密码 <span class="text-danger">*</span>
+                </label>
+                <div class="input-with-icon">
+                    <input type="password" id="password" name="password" class="form-control" 
+                           placeholder="至少6个字符" required minlength="6" autocomplete="new-password">
+                    <button type="button" class="toggle-password" onclick="togglePassword('password')">
+                        <svg id="eye-password" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="password-strength" id="password-strength">
+                    <div class="strength-bar"><span></span><span></span><span></span><span></span></div>
+                    <small class="strength-text">密码强度</small>
+                </div>
+            </div>
+
+            <!-- 确认密码 -->
+            <div class="form-group">
+                <label for="confirm_password">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    确认密码 <span class="text-danger">*</span>
+                </label>
+                <div class="input-with-icon">
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-control" 
+                           placeholder="再次输入密码" required minlength="6" autocomplete="new-password">
+                    <span id="confirm-status" class="input-status"></span>
+                </div>
+            </div>
+
+            <!-- 提交按钮 -->
+            <button type="submit" id="submit-btn" class="btn btn-primary btn-block" disabled>
+                <span class="btn-text">完成注册</span>
+                <span class="btn-loader" style="display: none;">
+                    <span class="spinner"></span>
+                </span>
+            </button>
+        </form>
+
+        <div class="login-footer">
+            <p>已有账户？ <a href="{{ url_for('login') }}">立即登录 →</a></p>
+        </div>
+    </div>
+</div>
+
+<style>
+.register-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.register-header .logo-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.register-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.register-header .subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.register-form .form-group {
+    margin-bottom: 20px;
+}
+
+.register-form label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+}
+
+.register-form label svg {
+    color: var(--text-secondary);
+}
+
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon .form-control {
+    padding-right: 40px;
+}
+
+.input-status {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+}
+
+.input-status.valid::after {
+    content: '✓';
+    color: var(--success, #22c55e);
+    font-weight: bold;
+}
+
+.input-status.invalid::after {
+    content: '✕';
+    color: var(--danger, #ef4444);
+    font-weight: bold;
+}
+
+.input-status.loading::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--text-secondary);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+}
+
+.toggle-password:hover {
+    color: var(--text-primary);
+}
+
+.password-strength {
+    margin-top: 8px;
+}
+
+.strength-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.strength-bar span {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    transition: background 0.3s;
+}
+
+.strength-bar.weak span:nth-child(1) { background: var(--danger, #ef4444); }
+.strength-bar.fair span:nth-child(1),
+.strength-bar.fair span:nth-child(2) { background: var(--warning, #f59e0b); }
+.strength-bar.good span:nth-child(1),
+.strength-bar.good span:nth-child(2),
+.strength-bar.good span:nth-child(3) { background: var(--info, #3b82f6); }
+.strength-bar.strong span { background: var(--success, #22c55e); }
+
+.strength-text {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.strength-text.weak { color: var(--danger, #ef4444); }
+.strength-text.fair { color: var(--warning, #f59e0b); }
+.strength-text.good { color: var(--info, #3b82f6); }
+.strength-text.strong { color: var(--success, #22c55e); }
+
+#submit-btn {
+    margin-top: 8px;
+    height: 48px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-loader .spinner {
+    width: 18px;
+    height: 18px;
+    border-width: 2px;
+}
+
+.login-footer {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.login-footer a {
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+// 邀请码验证
+let inviteValid = false;
+const inviteInput = document.getElementById('invite_code');
+const inviteStatus = document.getElementById('invite-status');
+const inviteHint = document.getElementById('invite-hint');
+
+let inviteCheckTimer;
+inviteInput.addEventListener('input', () => {
+    const code = inviteInput.value.trim().toUpperCase();
+    inviteInput.value = code;
+    
+    if (code.length < 6) {
+        inviteStatus.className = 'input-status';
+        inviteHint.textContent = '邀请码应为8位字符';
+        inviteValid = false;
+        return;
+    }
+    
+    clearTimeout(inviteCheckTimer);
+    inviteCheckTimer = setTimeout(() => checkInviteCode(code), 300);
+});
+
+function checkInviteCode(code) {
+    inviteStatus.className = 'input-status loading';
+    
+    fetch('/api/invite-codes/validate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code: code})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.valid) {
+            inviteStatus.className = 'input-status valid';
+            inviteHint.innerHTML = `<span style="color: var(--success, #22c55e);">✓ 邀请码有效</span> — 剩余 ${data.remaining} 次可用`;
+            inviteValid = true;
+        } else {
+            inviteStatus.className = 'input-status invalid';
+            inviteHint.innerHTML = `<span style="color: var(--danger, #ef4444);">✕ ${data.message || '邀请码无效'}</span>`;
+            inviteValid = false;
+        }
+    })
+    .catch(() => {
+        inviteStatus.className = 'input-status invalid';
+        inviteHint.textContent = '邀请码验证失败';
+        inviteValid = false;
+    });
+}
+
+// 用户名验证
+let usernameValid = false;
+const usernameInput = document.getElementById('username');
+const usernameStatus = document.getElementById('username-status');
+
+let usernameCheckTimer;
+usernameInput.addEventListener('input', () => {
+    const username = usernameInput.value.trim();
+    
+    if (username.length < 3) {
+        usernameStatus.className = 'input-status';
+        usernameValid = false;
+        return;
+    }
+    
+    clearTimeout(usernameCheckTimer);
+    usernameCheckTimer = setTimeout(() => checkUsername(username), 300);
+});
+
+function checkUsername(username) {
+    usernameStatus.className = 'input-status loading';
+    
+    fetch('/api/users/check-username', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: username})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.available) {
+            usernameStatus.className = 'input-status valid';
+            usernameValid = true;
+        } else {
+            usernameStatus.className = 'input-status invalid';
+            usernameValid = false;
+        }
+    })
+    .catch(() => {
+        usernameStatus.className = 'input-status';
+        usernameValid = false;
+    });
+}
+
+// 密码强度
+const passwordInput = document.getElementById('password');
+const strengthBar = document.querySelector('.strength-bar');
+const strengthText = document.querySelector('.strength-text');
+
+passwordInput.addEventListener('input', () => {
+    const pwd = passwordInput.value;
+    const strength = getPasswordStrength(pwd);
+    
+    strengthBar.className = 'strength-bar ' + strength.level;
+    strengthText.className = 'strength-text ' + strength.level;
+    strengthText.textContent = strength.text;
+    
+    checkFormValid();
+});
+
+function getPasswordStrength(pwd) {
+    if (!pwd) return {level: '', text: '密码强度'};
+    
+    let score = 0;
+    if (pwd.length >= 6) score++;
+    if (pwd.length >= 10) score++;
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+    if (/\d/.test(pwd)) score++;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) score++;
+    
+    if (score <= 1) return {level: 'weak', text: '弱 — 建议增加长度和特殊字符'};
+    if (score <= 2) return {level: 'fair', text: '一般 — 可以更复杂一些'};
+    if (score <= 3) return {level: 'good', text: '良好'};
+    return {level: 'strong', text: '强 — 安全性较高'};
+}
+
+// 确认密码验证
+const confirmInput = document.getElementById('confirm_password');
+const confirmStatus = document.getElementById('confirm-status');
+
+confirmInput.addEventListener('input', () => {
+    const pwd = passwordInput.value;
+    const confirm = confirmInput.value;
+    
+    if (!confirm) {
+        confirmStatus.className = 'input-status';
+        return;
+    }
+    
+    if (pwd === confirm) {
+        confirmStatus.className = 'input-status valid';
+    } else {
+        confirmStatus.className = 'input-status invalid';
+    }
+    
+    checkFormValid();
+});
+
+function checkFormValid() {
+    // 只需基本格式验证即可点击，后端会进行完整验证
+    const invite = inviteInput.value.trim().length >= 6;
+    const username = usernameInput.value.trim().length >= 3;
+    const password = passwordInput.value.length >= 6;
+    const confirm = confirmInput.value === passwordInput.value && passwordInput.value.length > 0;
+    
+    document.getElementById('submit-btn').disabled = !(invite && username && password && confirm);
+}
+
+// 切换密码可见性
+function togglePassword(id) {
+    const input = document.getElementById(id);
+    const eye = document.getElementById('eye-' + id);
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    } else {
+        input.type = 'password';
+        eye.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+}
+
+// 表单提交（使用传统方式，后端验证）
+document.getElementById('register-form').addEventListener('submit', (e) => {
+    const btn = document.getElementById('submit-btn');
+    btn.querySelector('.btn-text').style.display = 'none';
+    btn.querySelector('.btn-loader').style.display = 'inline-flex';
+    btn.disabled = true;
+    btn.querySelector('.btn-text').textContent = '注册中...';
+});
+</script>
+{% endblock %}

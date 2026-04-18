@@ -1,0 +1,679 @@
+{% extends "base.html" %}
+
+{% block title %}首次设置 - MediaBox{% endblock %}
+
+{% block extra_head %}
+<style>
+.setup-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.setup-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    max-width: 560px;
+    overflow: hidden;
+}
+
+.setup-header {
+    background: linear-gradient(135deg, var(--primary, #667eea) 0%, var(--primary-dark, #764ba2) 100%);
+    padding: 32px 40px;
+    color: white;
+    text-align: center;
+}
+
+.setup-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+}
+
+.setup-header p {
+    opacity: 0.9;
+    margin: 0;
+    font-size: 14px;
+}
+
+.setup-logo {
+    width: 72px;
+    height: 72px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
+.setup-logo svg {
+    width: 40px;
+    height: 40px;
+    stroke: white;
+}
+
+/* 步骤指示器 */
+.step-indicators {
+    display: flex;
+    justify-content: center;
+    padding: 24px 40px;
+    gap: 8px;
+}
+
+.step-dot {
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    background: #e5e7eb;
+    transition: all 0.3s;
+}
+
+.step-dot.active {
+    background: var(--primary, #667eea);
+    width: 48px;
+}
+
+.step-dot.completed {
+    background: #10b981;
+}
+
+/* 步骤内容 */
+.setup-body {
+    padding: 0 40px 32px;
+}
+
+.step-content {
+    display: none;
+}
+
+.step-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.step-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 8px 0;
+}
+
+.step-desc {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0 0 24px 0;
+}
+
+/* 表单 */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.form-group .hint {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 6px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary, #667eea);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-control.is-invalid {
+    border-color: #ef4444;
+}
+
+.invalid-feedback {
+    color: #ef4444;
+    font-size: 12px;
+    margin-top: 6px;
+}
+
+/* 服务器测试 */
+.test-result {
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: none;
+}
+
+.test-result.success {
+    display: block;
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.test-result.error {
+    display: block;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.test-result.loading {
+    display: block;
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* 开关 */
+.switch-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
+.switch-label {
+    font-size: 14px;
+    color: #374151;
+}
+
+.switch-label small {
+    display: block;
+    color: #9ca3af;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #d1d5db;
+    border-radius: 26px;
+    transition: 0.3s;
+}
+
+.switch-slider:before {
+    content: "";
+    position: absolute;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.switch input:checked + .switch-slider {
+    background: var(--primary, #667eea);
+}
+
+.switch input:checked + .switch-slider:before {
+    transform: translateX(22px);
+}
+
+/* 按钮 */
+.btn-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+}
+
+.btn {
+    flex: 1;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--primary, #667eea);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark, #764ba2);
+    transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+/* 完成页面 */
+.complete-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+}
+
+.complete-icon svg {
+    width: 40px;
+    height: 40px;
+    stroke: white;
+}
+
+.complete-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 12px 0;
+    text-align: center;
+}
+
+.complete-desc {
+    color: #6b7280;
+    text-align: center;
+    margin: 0 0 32px 0;
+    line-height: 1.6;
+}
+
+/* 进度条 */
+.progress-bar {
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    margin-top: 24px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary, #667eea);
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="setup-container">
+    <div class="setup-card">
+        <div class="setup-header">
+            <div class="setup-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                    <path d="m9 9.5 2 2 4-4"/>
+                </svg>
+            </div>
+            <h1>欢迎使用 MediaBox</h1>
+            <p>只需几分钟即可完成初始化配置</p>
+        </div>
+        
+        <!-- 步骤指示器 -->
+        <div class="step-indicators">
+            <div class="step-dot active" data-step="1"></div>
+            <div class="step-dot" data-step="2"></div>
+            <div class="step-dot" data-step="3"></div>
+            <div class="step-dot" data-step="4"></div>
+        </div>
+        
+        <div class="setup-body">
+            <form id="setupForm">
+                <!-- 步骤1：Emby服务器 -->
+                <div class="step-content active" data-step="1">
+                    <h2 class="step-title">连接 Emby 服务器</h2>
+                    <p class="step-desc">请提供您的 Emby 服务器地址和 API 密钥</p>
+                    
+                    <div class="form-group">
+                        <label for="emby_url">服务器地址</label>
+                        <input type="url" id="emby_url" name="emby_url" class="form-control" 
+                               placeholder="http://192.168.1.100:8096" required>
+                        <p class="hint">Emby Web 界面的访问地址，通常是 http://IP:8096</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emby_api_key">API 密钥</label>
+                        <input type="password" id="emby_api_key" name="emby_api_key" class="form-control" 
+                               placeholder="请输入 Emby API 密钥" required>
+                        <p class="hint">在 Emby 管理后台 → 高级 → API 密钥中创建</p>
+                    </div>
+                    
+                    <div class="test-result" id="serverTestResult"></div>
+                    
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="testServerBtn" onclick="testServer()">
+                            测试连接
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 步骤2：管理员账户 -->
+                <div class="step-content" data-step="2">
+                    <h2 class="step-title">设置管理员账户</h2>
+                    <p class="step-desc">创建 MediaBox 管理后台的登录凭证</p>
+                    
+                    <div class="form-group">
+                        <label for="admin_username">用户名</label>
+                        <input type="text" id="admin_username" name="admin_username" class="form-control" 
+                               placeholder="admin" value="admin" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="admin_password">密码</label>
+                        <input type="password" id="admin_password" name="admin_password" class="form-control" 
+                               placeholder="至少6位字符" minlength="6" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="admin_password_confirm">确认密码</label>
+                        <input type="password" id="admin_password_confirm" name="admin_password_confirm" class="form-control" 
+                               placeholder="再次输入密码" required>
+                        <div class="invalid-feedback" id="passwordMatchError" style="display: none;">两次输入的密码不一致</div>
+                    </div>
+                </div>
+                
+                <!-- 步骤3：刮削配置（可选） -->
+                <div class="step-content" data-step="3">
+                    <h2 class="step-title">媒体刮削（可选）</h2>
+                    <p class="step-desc">配置刮削服务以获取更完整的媒体信息</p>
+                    
+                    <div class="form-group">
+                        <label for="tmdb_api_key">TMDB API 密钥</label>
+                        <input type="text" id="tmdb_api_key" name="tmdb_api_key" class="form-control" 
+                               placeholder="留空可稍后配置">
+                        <p class="hint">从 <a href="https://www.themoviedb.org/settings/api" target="_blank">TMDB</a> 免费获取</p>
+                    </div>
+                    
+                    <div class="switch-group">
+                        <div class="switch-label">
+                            启用代理
+                            <small>如果无法直接访问 TMDB，请启用并配置代理</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="proxy_enabled" name="proxy_enabled">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group" id="proxyGroup" style="display: none;">
+                        <label for="proxy_url">代理地址</label>
+                        <input type="text" id="proxy_url" name="proxy_url" class="form-control" 
+                               placeholder="http://proxy:8080">
+                    </div>
+                    
+                    <div class="switch-group">
+                        <div class="switch-label">
+                            启用豆瓣备选
+                            <small>当 TMDB 无法找到时，自动尝试豆瓣</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="douban_fallback" name="douban_fallback" checked>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 步骤4：完成 -->
+                <div class="step-content" data-step="4">
+                    <div class="complete-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                    <h2 class="complete-title">设置完成！</h2>
+                    <p class="complete-desc">
+                        MediaBox 已准备就绪。<br>
+                        点击下方按钮进入管理后台开始使用。
+                    </p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <!-- 导航按钮 -->
+                <div class="btn-group" id="navButtons">
+                    <button type="button" class="btn btn-secondary" id="prevBtn" onclick="prevStep()" style="display: none;">
+                        上一步
+                    </button>
+                    <button type="button" class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+                        下一步
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn" style="display: none;">
+                        进入管理后台
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// 状态管理
+let currentStep = 1;
+const totalSteps = 4;
+let serverTested = false;
+let serverValid = false;
+
+const form = document.getElementById('setupForm');
+const steps = document.querySelectorAll('.step-content');
+const dots = document.querySelectorAll('.step-dot');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const submitBtn = document.getElementById('submitBtn');
+
+function updateUI() {
+    // 更新步骤内容
+    steps.forEach(s => s.classList.remove('active'));
+    document.querySelector(`.step-content[data-step="${currentStep}"]`).classList.add('active');
+    
+    // 更新指示器
+    dots.forEach((dot, i) => {
+        dot.classList.remove('active', 'completed');
+        if (i + 1 < currentStep) dot.classList.add('completed');
+        if (i + 1 === currentStep) dot.classList.add('active');
+    });
+    
+    // 更新按钮
+    prevBtn.style.display = currentStep > 1 && currentStep < 4 ? 'flex' : 'none';
+    nextBtn.style.display = currentStep < 3 ? 'flex' : 'none';
+    submitBtn.style.display = currentStep === 4 ? 'flex' : 'none';
+    
+    // 第一步需要验证服务器
+    if (currentStep === 1) {
+        nextBtn.disabled = !serverValid;
+    }
+}
+
+function nextStep() {
+    if (currentStep === 1 && !serverValid) {
+        flash('请先测试服务器连接', 'warning');
+        return;
+    }
+    if (currentStep === 2) {
+        if (!validatePassword()) return;
+    }
+    if (currentStep < totalSteps) {
+        currentStep++;
+        updateUI();
+    }
+}
+
+function prevStep() {
+    if (currentStep > 1) {
+        currentStep--;
+        updateUI();
+    }
+}
+
+function validatePassword() {
+    const pw = document.getElementById('admin_password').value;
+    const pw2 = document.getElementById('admin_password_confirm').value;
+    const error = document.getElementById('passwordMatchError');
+    
+    if (pw.length < 6) {
+        flash('密码至少需要6位字符', 'warning');
+        return false;
+    }
+    
+    if (pw !== pw2) {
+        error.style.display = 'block';
+        document.getElementById('admin_password_confirm').classList.add('is-invalid');
+        return false;
+    }
+    
+    error.style.display = 'none';
+    document.getElementById('admin_password_confirm').classList.remove('is-invalid');
+    return true;
+}
+
+// 密码确认监听
+document.getElementById('admin_password_confirm').addEventListener('input', () => {
+    document.getElementById('passwordMatchError').style.display = 'none';
+    document.getElementById('admin_password_confirm').classList.remove('is-invalid');
+});
+
+// 代理开关监听
+document.getElementById('proxy_enabled').addEventListener('change', (e) => {
+    document.getElementById('proxyGroup').style.display = e.target.checked ? 'block' : 'none';
+});
+
+// 测试服务器连接
+async function testServer() {
+    const url = document.getElementById('emby_url').value;
+    const apiKey = document.getElementById('emby_api_key').value;
+    const result = document.getElementById('serverTestResult');
+    
+    if (!url || !apiKey) {
+        result.className = 'test-result error';
+        result.textContent = '请填写服务器地址和 API 密钥';
+        return;
+    }
+    
+    result.className = 'test-result loading';
+    result.textContent = '正在连接...';
+    
+    try {
+        const resp = await fetch('/api/setup/test-emby', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, api_key: apiKey })
+        });
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+            result.className = 'test-result success';
+            result.innerHTML = `✓ 连接成功！服务器：<strong>${data.server_name}</strong><br>版本：${data.version}`;
+            serverValid = true;
+            serverTested = true;
+        } else {
+            result.className = 'test-result error';
+            result.textContent = `✗ 连接失败：${data.error}`;
+            serverValid = false;
+        }
+    } catch (err) {
+        result.className = 'test-result error';
+        result.textContent = '✗ 连接失败，请检查网络和地址是否正确';
+        serverValid = false;
+    }
+    
+    updateUI();
+}
+
+// 提交表单
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '正在保存...';
+    
+    try {
+        const resp = await fetch('/api/setup/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                emby_url: document.getElementById('emby_url').value,
+                emby_api_key: document.getElementById('emby_api_key').value,
+                admin_username: document.getElementById('admin_username').value,
+                admin_password: document.getElementById('admin_password').value,
+                tmdb_api_key: document.getElementById('tmdb_api_key').value,
+                proxy_enabled: document.getElementById('proxy_enabled').checked,
+                proxy_url: document.getElementById('proxy_url').value,
+                douban_fallback: document.getElementById('douban_fallback').checked
+            })
+        });
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+            // 跳转到登录页
+            window.location.href = '/login';
+        } else {
+            flash(data.error || '保存失败', 'danger');
+            submitBtn.disabled = false;
+            submitBtn.textContent = '进入管理后台';
+        }
+    } catch (err) {
+        flash('保存失败，请重试', 'danger');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '进入管理后台';
+    }
+});
+
+// 初始化
+updateUI();
+</script>
+{% endblock %}

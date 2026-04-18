@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+
+{% block title %}Emby反代 - Emby管理系统{% endblock %}
+{% block topbar_title %}🎭 Emby反代{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h1>🎭 Emby 反向代理</h1>
+    <p>通过本地代理访问Emby完整Web界面，无需暴露Emby服务器地址</p>
+</div>
+
+<!-- 反代访问入口 -->
+{% if emby_proxy_enabled %}
+<div class="card fade-in proxy-access-card">
+    <div class="proxy-access-inner">
+        <div class="proxy-access-info">
+            <div class="proxy-status-dot online"></div>
+            <div>
+                <h3>代理服务运行中</h3>
+                <p class="text-muted">透明代理 · 独立端口 · 完整功能</p>
+            </div>
+        </div>
+        <div class="proxy-access-actions">
+            <a href="http://{{ proxy_host }}:{{ emby_proxy_port }}/web/index.html" target="_blank" class="btn btn-primary btn-lg proxy-open-btn">
+                🎬 打开Emby
+            </a>
+            <div class="proxy-url-box">
+                <span class="proxy-url-label">访问地址</span>
+                <code class="proxy-url-code">http://{{ proxy_host }}:{{ emby_proxy_port }}</code>
+                <button class="btn btn-sm btn-secondary" onclick="copyProxyUrl()" title="复制地址">📋</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card fade-in proxy-access-card proxy-disabled">
+    <div class="proxy-access-inner">
+        <div class="proxy-access-info">
+            <div class="proxy-status-dot offline"></div>
+            <div>
+                <h3>代理服务未启用</h3>
+                <p class="text-muted">请在下方配置中启用反向代理</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 反向代理设置 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>⚙️ 代理配置</h3>
+        <span class="badge {% if emby_proxy_enabled %}badge-success{% else %}badge-secondary{% endif %}">
+            {% if emby_proxy_enabled %}运行中{% else %}已停止{% endif %}
+        </span>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="proxy-config-form">
+            <input type="hidden" name="form_type" value="emby_proxy_config">
+            
+            <div class="proxy-settings-grid">
+                <div class="proxy-setting-item">
+                    <div class="proxy-setting-label">
+                        <label class="switch-toggle">
+                            <input type="checkbox" name="emby_proxy_enabled" id="emby_proxy_enabled"
+                                   {% if emby_proxy_enabled %}checked{% endif %}>
+                            <span class="switch-slider"></span>
+                        </label>
+                        <div>
+                            <strong>启用反向代理</strong>
+                            <p class="text-muted" style="font-size:12px; margin-top:2px;">
+                                在独立端口启动透明反向代理，直接访问Emby完整Web界面
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="proxy-setting-item">
+                    <div class="proxy-port-field">
+                        <label for="emby_proxy_port"><strong>监听端口</strong></label>
+                        <div class="port-input-group">
+                            <span class="port-prefix">0.0.0.0 :</span>
+                            <input type="number" id="emby_proxy_port" name="emby_proxy_port" 
+                                   class="form-control port-input"
+                                   value="{{ emby_proxy_port }}" min="1" max="65535" placeholder="8097"
+                                   {% if not emby_proxy_enabled %}disabled{% endif %}>
+                        </div>
+                        <p class="text-muted" style="font-size:12px; margin-top:4px;">
+                            默认8097，修改后保存生效
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="proxy-setting-item">
+                    <div class="proxy-info-block">
+                        <div class="info-row">
+                            <span class="info-label">目标服务器</span>
+                            <span class="info-value">{{ emby_server_url }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">代理模式</span>
+                            <span class="info-value">透明代理（无URL重写）</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">API Key注入</span>
+                            <span class="info-value">自动</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">多线程</span>
+                            <span class="info-value">已启用</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex gap-1 mt-3">
+                <button type="submit" class="btn btn-primary">💾 保存并应用</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 使用说明 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>📖 使用说明</h3>
+    </div>
+    <div class="card-body">
+        <div class="guide-grid">
+            <div class="guide-item">
+                <div class="guide-icon">1️⃣</div>
+                <div>
+                    <strong>启用代理</strong>
+                    <p class="text-muted">打开上方开关并保存，代理服务将在指定端口启动</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">2️⃣</div>
+                <div>
+                    <strong>访问Emby</strong>
+                    <p class="text-muted">点击"打开Emby"按钮或直接访问代理地址</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">3️⃣</div>
+                <div>
+                    <strong>正常使用</strong>
+                    <p class="text-muted">代理会自动注入API Key，Emby所有功能均可正常使用</p>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-icon">💡</div>
+                <div>
+                    <strong>工作原理</strong>
+                    <p class="text-muted">透明转发所有请求到Emby服务器，自动处理CORS和认证</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 反代访问入口卡片 */
+.proxy-access-card {
+    border: 1px solid var(--primary);
+    background: linear-gradient(135deg, var(--glass-bg), var(--card-bg));
+    overflow: hidden;
+    position: relative;
+}
+.proxy-access-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--primary-light));
+}
+.proxy-access-card.proxy-disabled {
+    border-color: var(--border-color);
+}
+.proxy-access-card.proxy-disabled::before {
+    background: var(--border-color);
+}
+.proxy-access-inner {
+    padding: 8px;
+}
+.proxy-access-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.proxy-access-info h3 {
+    margin: 0;
+    font-size: 18px;
+}
+.proxy-status-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.proxy-status-dot.online {
+    background: var(--success);
+    box-shadow: 0 0 12px rgba(102,187,106,0.5);
+    animation: pulse-dot 2s infinite;
+}
+.proxy-status-dot.offline {
+    background: var(--text-muted);
+}
+@keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 8px rgba(102,187,106,0.3); }
+    50% { box-shadow: 0 0 16px rgba(102,187,106,0.6); }
+}
+.proxy-access-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.proxy-open-btn {
+    font-size: 16px;
+    padding: 12px 28px;
+    border-radius: var(--radius-md);
+    animation: glow-btn 3s infinite;
+}
+@keyframes glow-btn {
+    0%, 100% { box-shadow: 0 0 8px var(--primary-glow); }
+    50% { box-shadow: 0 0 20px var(--primary-glow); }
+}
+.proxy-url-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+.proxy-url-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.proxy-url-code {
+    font-family: var(--font-mono, 'Consolas', monospace);
+    font-size: 14px;
+    color: var(--primary);
+    background: none;
+    padding: 0;
+}
+
+/* 代理设置网格 */
+.proxy-settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+.proxy-setting-item {
+    padding: 20px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+}
+.proxy-setting-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+/* 开关样式 */
+.switch-toggle {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border-color);
+    border-radius: 26px;
+    transition: 0.3s;
+}
+.switch-slider::before {
+    content: '';
+    position: absolute;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+.switch-toggle input:checked + .switch-slider {
+    background: var(--primary);
+}
+.switch-toggle input:checked + .switch-slider::before {
+    transform: translateX(22px);
+}
+
+/* 端口输入 */
+.port-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-top: 8px;
+}
+.port-prefix {
+    padding: 8px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-right: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    font-family: var(--font-mono, monospace);
+    font-size: 14px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.port-input {
+    max-width: 120px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+    font-family: var(--font-mono, monospace);
+    font-size: 18px !important;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* 信息面板 */
+.proxy-info-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.info-row:last-child {
+    border-bottom: none;
+}
+.info-label {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.info-value {
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font-mono, monospace);
+}
+
+/* 使用说明 */
+.guide-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.guide-item {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    align-items: flex-start;
+}
+.guide-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+.guide-item strong {
+    display: block;
+    margin-bottom: 4px;
+}
+.guide-item p {
+    font-size: 13px;
+    margin: 0;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .proxy-settings-grid {
+        grid-template-columns: 1fr;
+    }
+    .guide-grid {
+        grid-template-columns: 1fr;
+    }
+    .proxy-access-actions {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 切换反代端口输入框启用状态
+document.getElementById('emby_proxy_enabled').addEventListener('change', function() {
+    const portInput = document.getElementById('emby_proxy_port');
+    portInput.disabled = !this.checked;
+});
+
+// 复制代理URL
+function copyProxyUrl() {
+    const port = document.getElementById('emby_proxy_port').value || '8097';
+    const host = window.location.hostname;
+    const url = `http://${host}:${port}`;
+    navigator.clipboard.writeText(url).then(() => {
+        // 视觉反馈
+        const btn = event.currentTarget;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✅';
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    }).catch(() => {
+        // fallback
+        prompt('请复制以下地址:', url);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - MediaBox{% endblock %}
+{% block topbar_title %}👥 用户管理{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <div class="card">
+        <div class="card-header">
+            <h3>用户列表</h3>
+            <span class="badge badge-secondary">{{ db_users|length }} 个用户</span>
+        </div>
+        <div class="card-body no-padding">
+            {% if db_users %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>用户名</th>
+                            <th>显示名称</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>注册时间</th>
+                            <th>最后登录</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in db_users %}
+                        <tr data-user-id="{{ user.id }}">
+                            <td>
+                                <code style="font-size: 13px;">{{ user.username }}</code>
+                                {% if user.id == current_user.id %}
+                                <span class="badge badge-primary" style="margin-left: 4px;">我</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.display_name or '-' }}</td>
+                            <td>
+                                {% if user.is_admin %}
+                                <span class="badge badge-warning">管理员</span>
+                                {% else %}
+                                <span class="badge badge-secondary">普通用户</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                <span class="badge badge-success">正常</span>
+                                {% else %}
+                                <span class="badge badge-danger">已禁用</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted" style="font-size: 12px;">
+                                {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '-' }}
+                            </td>
+                            <td class="text-muted" style="font-size: 12px;">
+                                {{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else '从未登录' }}
+                            </td>
+                            <td>
+                                {% if user.id != current_user.id %}
+                                <div class="flex gap-1">
+                                    <!-- 切换管理员 -->
+                                    <button type="button" class="btn btn-sm btn-ghost toggle-admin-btn" data-id="{{ user.id }}" title="{{ '取消管理员' if user.is_admin else '设为管理员' }}">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            {% if user.is_admin %}
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                            {% else %}
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="9" y2="9"/><line x1="15" y1="9" x2="15" y2="9"/>
+                                            {% endif %}
+                                        </svg>
+                                    </button>
+                                    <!-- 切换状态 -->
+                                    <button type="button" class="btn btn-sm btn-ghost toggle-active-btn" data-id="{{ user.id }}" title="{{ '启用用户' if not user.is_active else '禁用用户' }}">
+                                        {% if user.is_active %}
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--danger);">
+                                            <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                                        </svg>
+                                        {% else %}
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--success);">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                        {% endif %}
+                                    </button>
+                                    <!-- 删除 -->
+                                    <button type="button" class="btn btn-sm btn-ghost text-danger delete-btn" data-id="{{ user.id }}" title="删除用户">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                {% else %}
+                                <span class="text-muted" style="font-size: 12px;">当前用户</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding: 48px;">
+                <p class="text-muted">暂无注册用户</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// 切换管理员
+document.querySelectorAll('.toggle-admin-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('确定要修改该用户的管理员权限吗？')) return;
+        
+        try {
+            const resp = await fetch(`/api/users/${btn.dataset.id}/toggle-admin`, {method: 'POST'});
+            const data = await resp.json();
+            
+            if (data.success) {
+                flash('已更新用户权限', 'success');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                flash(data.error || '操作失败', 'danger');
+            }
+        } catch (err) {
+            flash('请求失败', 'danger');
+        }
+    });
+});
+
+// 切换激活状态
+document.querySelectorAll('.toggle-active-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('确定要修改该用户的激活状态吗？')) return;
+        
+        try {
+            const resp = await fetch(`/api/users/${btn.dataset.id}/toggle-active`, {method: 'POST'});
+            const data = await resp.json();
+            
+            if (data.success) {
+                flash('已更新用户状态', 'success');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                flash(data.error || '操作失败', 'danger');
+            }
+        } catch (err) {
+            flash('请求失败', 'danger');
+        }
+    });
+});
+
+// 删除用户
+document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('确定要删除该用户吗？此操作不可撤销！')) return;
+        
+        try {
+            const resp = await fetch(`/api/users/${btn.dataset.id}`, {method: 'DELETE'});
+            const data = await resp.json();
+            
+            if (data.success) {
+                btn.closest('tr').remove();
+                flash('用户已删除', 'success');
+            } else {
+                flash(data.error || '删除失败', 'danger');
+            }
+        } catch (err) {
+            flash('请求失败', 'danger');
+        }
+    });
+});
+</script>
+{% endblock %}

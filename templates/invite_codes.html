@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block title %}邀请码管理 - MediaBox{% endblock %}
+{% block topbar_title %}🔑 邀请码管理{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- 创建邀请码 -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3>➕ 生成邀请码</h3>
+        </div>
+        <div class="card-body">
+            <form id="create-code-form" class="flex-wrap gap-2 align-items-end">
+                <div class="form-group mb-0" style="min-width: 140px;">
+                    <label class="text-muted" style="font-size: 12px;">权限模板</label>
+                    <select name="template_id" class="form-control" style="width: 130px;">
+                        <option value="">默认模板</option>
+                        {% for t in templates %}
+                        <option value="{{ t.id }}" {{ 'selected' if t.is_default else '' }}>
+                            {{ t.name }} {{ '(默认)' if t.is_default else '' }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group mb-0" style="min-width: 120px;">
+                    <label class="text-muted" style="font-size: 12px;">有效期（天）</label>
+                    <input type="number" name="expires_days" value="7" min="1" max="365" class="form-control" style="width: 100px;">
+                </div>
+                <div class="form-group mb-0" style="min-width: 120px;">
+                    <label class="text-muted" style="font-size: 12px;">最大使用次数</label>
+                    <input type="number" name="max_uses" value="1" min="1" max="100" class="form-control" style="width: 80px;">
+                </div>
+                <div class="form-group mb-0">
+                    <label class="text-muted" style="font-size: 12px;">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        生成
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 权限模板管理入口 -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3>🎭 权限模板</h3>
+            <a href="{{ url_for('permission_templates_page') }}" class="btn btn-sm btn-outline">管理模板</a>
+        </div>
+        <div class="card-body">
+            <div class="template-cards">
+                {% for t in templates %}
+                <div class="template-card {{ 'default' if t.is_default else '' }}">
+                    <div class="template-name">
+                        {{ t.name }}
+                        {% if t.is_default %}<span class="badge badge-primary">默认</span>{% endif %}
+                    </div>
+                    <div class="template-desc">{{ t.description or '无描述' }}</div>
+                    <div class="template-perms">
+                        {% set perms = t.permissions|from_json if t.permissions else {} %}
+                        <span class="perm-tag {{ 'active' if perms.can_view }}">浏览</span>
+                        <span class="perm-tag {{ 'active' if perms.can_download }}">下载</span>
+                        <span class="perm-tag {{ 'active' if perms.can_manage }}">管理</span>
+                        <span class="perm-tag {{ 'active' if perms.can_admin }}">系统</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 邀请码列表 -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 邀请码列表</h3>
+            <span class="badge badge-secondary">{{ codes|length }} 个</span>
+        </div>
+        <div class="card-body no-padding">
+            {% if codes %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>邀请码</th>
+                            <th>权限模板</th>
+                            <th>创建者</th>
+                            <th>有效期至</th>
+                            <th>使用情况</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for code in codes %}
+                        <tr data-code-id="{{ code.id }}">
+                            <td>
+                                <code class="code-value" style="font-size: 14px; background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px;">
+                                    {{ code.code }}
+                                </code>
+                                <button type="button" class="btn btn-sm btn-ghost copy-btn" data-code="{{ code.code }}" title="复制">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                                    </svg>
+                                </button>
+                            </td>
+                            <td>
+                                {% if code.template_name %}
+                                    <span class="badge badge-info">{{ code.template_name }}</span>
+                                {% else %}
+                                    <span class="text-muted">默认</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ code.creator_name or '系统' }}</td>
+                            <td>
+                                {% if code.expires_at %}
+                                    {{ code.expires_at.strftime('%Y-%m-%d') if code.expires_at else '-' }}
+                                    {% if code.expires_at and code.expires_at < now %}
+                                        <span class="badge badge-danger">已过期</span>
+                                    {% endif %}
+                                {% else %}
+                                    永久有效
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="{% if code.use_count >= code.max_uses %}text-danger{% else %}text-success{% endif %}">
+                                    {{ code.use_count }} / {{ code.max_uses }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if code.use_count >= code.max_uses %}
+                                    <span class="badge badge-secondary">已用完</span>
+                                {% elif not code.is_active %}
+                                    <span class="badge badge-danger">已禁用</span>
+                                {% elif code.expires_at and code.expires_at < now %}
+                                    <span class="badge badge-danger">已过期</span>
+                                {% else %}
+                                    <span class="badge badge-success">可用</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if code.use_count < code.max_uses and code.is_active %}
+                                <button type="button" class="btn btn-sm btn-danger delete-btn" data-id="{{ code.id }}" title="删除">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                    </svg>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding: 48px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                </svg>
+                <p class="text-muted mt-2">暂无邀请码</p>
+                <p class="text-muted" style="font-size: 12px;">点击上方按钮生成新的邀请码</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// 生成邀请码
+document.getElementById('create-code-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const expires_days = form.expires_days.value;
+    const max_uses = form.max_uses.value;
+    const template_id = form.template_id.value;
+    const btn = form.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    
+    // 显示加载状态
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> 生成中...';
+    
+    try {
+        const resp = await fetch('/api/invite-codes', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',  // 包含 cookies
+            body: JSON.stringify({
+                expires_days: parseInt(expires_days), 
+                max_uses: parseInt(max_uses),
+                template_id: template_id ? parseInt(template_id) : null
+            })
+        });
+        
+        if (resp.status === 401) {
+            flash('请先登录', 'warning');
+            setTimeout(() => location.href = '/login', 1000);
+            return;
+        }
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+            let msg = '邀请码已生成并复制到剪贴板！';
+            if (data.template_name) {
+                msg += ` (${data.template_name})`;
+            }
+            await navigator.clipboard.writeText(data.code);
+            flash(msg, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            flash(data.error || '生成失败', 'danger');
+        }
+    } catch (err) {
+        console.error('生成邀请码失败:', err);
+        flash('请求失败: ' + err.message, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+});
+
+// 复制邀请码
+document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const code = btn.dataset.code;
+        await navigator.clipboard.writeText(code);
+        flash('已复制到剪贴板', 'success');
+    });
+});
+
+// 删除邀请码
+document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('确定要删除这个邀请码吗？')) return;
+        
+        try {
+            const resp = await fetch(`/api/invite-codes/${btn.dataset.id}`, {method: 'DELETE'});
+            const data = await resp.json();
+            
+            if (data.success) {
+                btn.closest('tr').remove();
+                flash('已删除', 'success');
+            } else {
+                flash(data.error || '删除失败', 'danger');
+            }
+        } catch (err) {
+            flash('请求失败', 'danger');
+        }
+    });
+});
+</script>
+
+<style>
+.template-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.template-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    min-width: 180px;
+    flex: 1;
+    max-width: 280px;
+}
+
+.template-card.default {
+    border-color: var(--primary);
+    background: rgba(var(--primary-rgb, 59, 130, 246), 0.05);
+}
+
+.template-name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.template-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.template-perms {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.perm-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.perm-tag.active {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-outline:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+</style>
+{% endblock %}

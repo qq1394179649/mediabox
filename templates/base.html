@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MediaBox - Emby 管理平台{% endblock %}</title>
+
+    <!-- Dynamic Theme CSS Variables -->
+    <style>
+    :root {
+        {% if theme_colors %}{% for key, val in theme_colors.items() %}--{{ key }}: {{ val }};
+        {% endfor %}{% endif %}
+        --danger: #ef5350;
+        --danger-dark: #c62828;
+        --warning: #ffa726;
+        --info: #29b6f6;
+        --success: #66bb6a;
+        --sidebar-w: 260px;
+        --topbar-h: 64px;
+        --radius-xxl: 28px;
+        --radius-xl: 20px;
+        --radius-lg: 16px;
+        --radius-md: 12px;
+        --radius-sm: 8px;
+        --shadow-xs: 0 1px 3px rgba(0,0,0,.06);
+        --shadow-sm: 0 2px 8px rgba(0,0,0,.1);
+        --shadow-md: 0 4px 24px rgba(0,0,0,.14);
+        --shadow-lg: 0 8px 48px rgba(0,0,0,.22);
+        --shadow-xl: 0 16px 72px rgba(0,0,0,.32);
+        --transition: .25s cubic-bezier(.4,0,.2,1);
+        --transition-slow: .4s cubic-bezier(.4,0,.2,1);
+        --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    </style>
+
+    <!-- Critical Inline CSS -->
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:var(--font-sans);background:var(--bg-body);color:var(--text-primary);min-height:100vh;line-height:1.6;-webkit-font-smoothing:antialiased}
+    a{color:var(--primary);text-decoration:none}
+    .app-layout{display:flex;min-height:100vh}
+    .main-content{flex:1;margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;transition:margin .35s cubic-bezier(.4,0,.2,1)}
+    .topbar{height:var(--topbar-h);padding:0 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-color);background:rgba(var(--topbar-bg-rgb,24,24,27),.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);flex-shrink:0;position:sticky;top:0;z-index:50;gap:20px}
+    .page-body{flex:1;padding:32px;width:100%}
+    </style>
+
+    <!-- Full CSS -->
+    <link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></noscript>
+
+    {% block extra_css %}{% endblock %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <!-- Mobile Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+
+    <div class="app-layout">
+        <!-- ================================================
+             SIDEBAR — Premium Elegant Design
+             ================================================ -->
+        <aside class="sidebar" id="sidebar">
+            <!-- Brand Header -->
+            <div class="sidebar-brand">
+                <div class="brand-header">
+                    <div class="brand-logo-wrap">
+                        <div class="brand-logo">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="brand-info">
+                        <h2 class="brand-name">MediaBox</h2>
+                        <p class="brand-tagline">Emby 管理平台</p>
+                    </div>
+                </div>
+                <div class="brand-divider"></div>
+                <div class="server-indicator">
+                    <span class="indicator-dot {{ 'online' if emby_online else 'offline' }}"></span>
+                    <span class="indicator-label">{{ '服务器在线' if emby_online else '服务器离线' }}</span>
+                    <span class="indicator-version">v1.0</span>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="sidebar-nav">
+                <div class="nav-group">
+                    <div class="nav-group-label">概览</div>
+                    <a href="{{ url_for('dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'dashboard' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                                <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">仪表盘</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-label">媒体管理</div>
+                    <a href="{{ url_for('library_items') }}" class="nav-item {{ 'active' if request.endpoint in ('library_items', 'library_item_detail') else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">媒体浏览</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    <a href="{{ url_for('strm_check') }}" class="nav-item {{ 'active' if request.endpoint == 'strm_check' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">STRM 检查</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    <a href="{{ url_for('media_scraper') }}" class="nav-item {{ 'active' if request.endpoint == 'media_scraper' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                                <path d="M21 15l-5-5L5 21"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">媒体刮削</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-label">系统</div>
+                    <a href="{{ url_for('users_list') }}" class="nav-item {{ 'active' if request.endpoint == 'users_list' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">用户管理</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    <a href="{{ url_for('invite_codes_page') }}" class="nav-item {{ 'active' if request.endpoint == 'invite_codes_page' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">邀请码</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    <a href="{{ url_for('permission_templates_page') }}" class="nav-item {{ 'active' if request.endpoint == 'permission_templates_page' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">权限模板</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    <a href="{{ url_for('devices_page') }}" class="nav-item {{ 'active' if request.endpoint == 'devices_page' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">在线设备</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    <a href="{{ url_for('system_info') }}" class="nav-item {{ 'active' if request.endpoint == 'system_info' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">系统信息</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    {% if config.get_emby_proxy_enabled() %}
+                    <a href="{{ url_for('emby_proxy_page') }}" class="nav-item {{ 'active' if request.endpoint == 'emby_proxy_page' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                                <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">Emby 反代</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    {% endif %}
+
+                    <a href="{{ url_for('app_settings') }}" class="nav-item {{ 'active' if request.endpoint == 'app_settings' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">应用设置</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                    <a href="{{ url_for('about') }}" class="nav-item {{ 'active' if request.endpoint == 'about' else '' }}">
+                        <span class="nav-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">关于项目</span>
+                        <span class="nav-active-bar"></span>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Footer -->
+            <div class="sidebar-footer">
+                <div class="footer-divider"></div>
+                <a href="{{ url_for('logout') }}" class="nav-item nav-item-danger">
+                    <span class="nav-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                    </span>
+                    <span class="nav-text">退出登录</span>
+                    <span class="nav-active-bar"></span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <button class="menu-toggle-btn" id="menuToggle" onclick="toggleSidebar()" aria-label="打开菜单">
+                    <span class="hamburger"><span></span><span></span><span></span></span>
+                </button>
+                <div class="topbar-title-area">
+                    <h1 class="topbar-title">{% block topbar_title %}{% endblock %}</h1>
+                </div>
+                <div class="topbar-right">
+                    <div class="topbar-server-badge {{ 'online' if emby_online else 'offline' }}">
+                        <span class="badge-dot {{ 'online' if emby_online else 'offline' }}"></span>
+                        <span>{{ '已连接' if emby_online else '离线' }}</span>
+                    </div>
+                    <div class="topbar-time" id="topbarTime"></div>
+                </div>
+            </header>
+
+            <!-- Page Body -->
+            <div class="page-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} fade-in">
+                    {% if category == 'success' %}✓{% elif category == 'danger' %}✕{% elif category == 'warning' %}⚠{% else %}ℹ{% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script>
+    // Toast 通知函数
+    function flash(message, type = 'info') {
+        const container = document.getElementById('toast-container') || createToastContainer();
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        
+        const icons = {
+            success: '✓',
+            danger: '✕',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+        
+        toast.innerHTML = `<span class="toast-icon">${icons[type] || icons.info}</span><span class="toast-message">${message}</span>`;
+        container.appendChild(toast);
+        
+        // 触发动画
+        requestAnimationFrame(() => toast.classList.add('show'));
+        
+        // 3秒后移除
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+    
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+        
+        // 添加 toast 样式
+        const style = document.createElement('style');
+        style.textContent = `
+            #toast-container {
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .toast {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 12px 20px;
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s ease;
+                min-width: 200px;
+            }
+            .toast.show {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            .toast-success { border-left: 3px solid #22c55e; }
+            .toast-danger { border-left: 3px solid #ef4444; }
+            .toast-warning { border-left: 3px solid #f59e0b; }
+            .toast-info { border-left: 3px solid #3b82f6; }
+            .toast-icon { font-size: 16px; }
+            .toast-success .toast-icon { color: #22c55e; }
+            .toast-danger .toast-icon { color: #ef4444; }
+            .toast-warning .toast-icon { color: #f59e0b; }
+            .toast-info .toast-icon { color: #3b82f6; }
+            .toast-message { color: var(--text-primary); }
+        `;
+        document.head.appendChild(style);
+        
+        return container;
+    }
+    
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        sidebar.classList.toggle('mobile-open');
+        backdrop.classList.toggle('active');
+        document.body.classList.toggle('sidebar-open');
+    }
+    function closeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        sidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('active');
+        document.body.classList.remove('sidebar-open');
+    }
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 768) closeSidebar();
+        });
+    });
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) closeSidebar();
+    });
+    // Live clock
+    function updateTime() {
+        const el = document.getElementById('topbarTime');
+        if (!el) return;
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2,'0');
+        const m = String(now.getMinutes()).padStart(2,'0');
+        const s = String(now.getSeconds()).padStart(2,'0');
+        el.textContent = h + ':' + m + ':' + s;
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+    </script>
+    {% else %}
+    {% block login_content %}{% endblock %}
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

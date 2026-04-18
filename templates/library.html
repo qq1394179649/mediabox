@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}媒体库 - Emby管理系统{% endblock %}
+{% block topbar_title %}📚 媒体库{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <p class="text-muted">管理Emby服务器上的媒体库</p>
+    <div class="d-flex gap-1">
+        <form method="POST" action="{{ url_for('library_refresh') }}" style="display:inline;">
+            <button type="submit" class="btn btn-primary" data-confirm="确认刷新整个媒体库？这可能需要一些时间。">🔄 刷新全部</button>
+        </form>
+        <a href="{{ url_for('library_items') }}" class="btn btn-secondary">🎬 浏览所有媒体</a>
+    </div>
+</div>
+
+<div class="card fade-in">
+    <div class="card-body no-padding">
+        {% if media_folders %}
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr><th>名称</th><th>类型</th><th>项目数</th><th style="text-align:right;">操作</th></tr>
+                </thead>
+                <tbody>
+                    {% for folder in media_folders %}
+                    <tr>
+                        <td><a href="{{ url_for('library_items', parent_id=folder.get('Id')) }}"><strong>{{ folder.get('Name', '未命名') }}</strong></a></td>
+                        <td>
+                            {% set ctype = folder.get('CollectionType', '') %}
+                            {% if ctype == 'movies' %}<span class="badge badge-primary">🎬 电影</span>
+                            {% elif ctype == 'tvshows' %}<span class="badge badge-info">📺 剧集</span>
+                            {% elif ctype == 'music' %}<span class="badge badge-warning">🎵 音乐</span>
+                            {% elif ctype == 'books' %}<span class="badge badge-success">📖 书籍</span>
+                            {% elif ctype == 'boxsets' %}<span class="badge badge-secondary">📦 合集</span>
+                            {% else %}<span class="badge badge-secondary">{{ ctype or '通用' }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% set fid = folder.get('Id') %}
+                            {% if fid and fid in folder_counts %}
+                            <strong>{{ folder_counts[fid] | format_number }}</strong> 个项目
+                            {% elif folder.get('ChildCount') is not none %}
+                            <strong>{{ folder.ChildCount }}</strong> 个项目
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:right;">
+                            <div class="d-flex gap-1" style="justify-content:flex-end;">
+                                {% if folder.get('Id') %}
+                                <form method="POST" action="{{ url_for('library_item_refresh', item_id=folder['Id']) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-ghost">🔄</button>
+                                </form>
+                                {% endif %}
+                                <a href="{{ url_for('library_items', parent_id=folder.get('Id')) }}" class="btn btn-sm btn-primary">浏览</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📂</div>
+            <h3>暂无媒体库</h3>
+            <p class="text-muted">请在Emby服务器中添加媒体库文件夹</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

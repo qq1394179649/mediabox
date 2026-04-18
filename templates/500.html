@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}500 - 服务器错误{% endblock %}
+
+{% block content %}
+<div class="empty-state fade-in" style="padding:128px 32px;">
+    <div class="empty-icon">💥</div>
+    <h1 style="font-size:48px; margin-bottom:16px;">500</h1>
+    <h3>服务器内部错误</h3>
+    <p class="text-muted">抱歉，服务器发生了错误，请稍后重试</p>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary mt-2">← 返回首页</a>
+</div>
+{% endblock %}

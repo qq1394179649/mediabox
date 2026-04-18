@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}系统设置 - MediaBox{% endblock %}
+{% block topbar_title %}⚙️ 系统设置{% endblock %}
+
+{% block content %}
+<!-- MediaBox 本机系统信息 -->
+<div class="card fade-in">
+    <div class="card-header">
+        <h3>🖥️ MediaBox 系统信息</h3>
+        <span class="badge badge-primary">v1.0</span>
+    </div>
+    <div class="card-body">
+        <div class="grid-2">
+            <div>
+                <table class="data-table">
+                    <tr><td class="text-muted" style="width:120px;">主机名</td><td><code>{{ hostname }}</code></td></tr>
+                    <tr><td class="text-muted">内网地址</td><td><code>127.0.0.1</code> (localhost)</td></tr>
+                    {% for ip in local_ips if ip != '127.0.0.1' %}
+                    <tr><td class="text-muted">局域网地址</td><td><a href="http://{{ ip }}:{{ app_port }}" target="_blank" class="text-primary" style="text-decoration:underline;"><code>{{ ip }}</code></a></td></tr>
+                    {% endfor %}
+                    <tr><td class="text-muted">访问地址</td><td><a href="{{ url_for('dashboard', _external=True) }}" target="_blank" class="text-primary" style="text-decoration:underline;"><code>{{ url_for('dashboard', _external=True) }}</code></a></td></tr>
+                </table>
+            </div>
+            <div>
+                <table class="data-table">
+                    <tr><td class="text-muted" style="width:120px;">运行端口</td><td><code>{{ app_port }}</code></td></tr>
+                    <tr><td class="text-muted">Python版本</td><td><code>{{ sys.version.split()[0] }}</code></td></tr>
+                    <tr><td class="text-muted">Flask版本</td><td><code>{{ flask_version }}</code></td></tr>
+                    <tr><td class="text-muted">系统平台</td><td><code>{{ sys.platform }}</code></td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Emby 服务器信息 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>📡 Emby 服务器信息</h3>
+        <form method="POST" action="{{ url_for('system_restart') }}" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-danger" data-confirm="确认重启Emby服务器？所有正在播放的会话将被中断！">🔄 重启</button>
+        </form>
+    </div>
+    <div class="card-body">
+        {% if info %}
+        <div class="grid-2">
+            <div>
+                <table class="data-table">
+                    <tr><td class="text-muted" style="width:120px;">服务器名称</td><td>{{ info.get('ServerName', '-') }}</td></tr>
+                    <tr><td class="text-muted">版本</td><td><span class="badge badge-primary">{{ info.get('Version', '-') }}</span></td></tr>
+                    <tr><td class="text-muted">操作系统</td><td>{{ info.get('OperatingSystem', '-') }}</td></tr>
+                    <tr><td class="text-muted">系统架构</td><td><code>{{ info.get('SystemArchitecture', info.get('Architecture', '-')) }}</code></td></tr>
+                </table>
+            </div>
+            <div>
+                <table class="data-table">
+                    <tr><td class="text-muted" style="width:120px;">服务器ID</td><td style="font-family:monospace;font-size:11px;">{{ info.get('Id', '-') }}</td></tr>
+                    <tr>
+                        <td class="text-muted">内部地址</td>
+                        <td>
+                            {% set local_addr = info.get('LocalAddress', '') %}
+                            {% if local_addr %}
+                            <a href="{{ local_addr }}" target="_blank" class="text-primary" style="text-decoration:underline;">{{ local_addr }}</a>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">外部地址</td>
+                        <td>
+                            {% set wan_addr = info.get('WanAddress', '') %}
+                            {% if wan_addr %}
+                            <a href="{{ wan_addr }}" target="_blank" class="text-primary" style="text-decoration:underline;">{{ wan_addr }}</a>
+                            {% else %}
+                            <span class="text-muted">未配置</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr><td class="text-muted">启动向导</td><td>{{ '已完成' if info.get('StartupWizardCompleted') else '未完成' }}</td></tr>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:32px;">
+            <p class="text-danger">⚠️ 无法获取Emby服务器信息，请检查Emby服务器连接</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 服务器日志 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header"><h3>📝 服务器日志</h3></div>
+    <div class="card-body no-padding">
+        {% if logs %}
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead><tr><th>日志文件</th><th>修改日期</th><th>大小</th></tr></thead>
+                <tbody>
+                    {% for log in logs[:20] %}
+                    <tr>
+                        <td style="font-family:monospace;font-size:13px;">{{ log.get('Name', '-') }}</td>
+                        <td class="text-muted" style="font-size:12px;">{{ log.get('DateModified', '-') }}</td>
+                        <td class="text-muted">{{ log.get('Size', 0) | filesizeformat }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:32px;"><p class="text-muted">暂无日志数据</p></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 危险操作 -->
+<div class="card mt-3 fade-in" style="border-color: var(--danger);">
+    <div class="card-header" style="border-color: var(--danger);"><h3 class="text-danger">⚠️ 危险操作</h3></div>
+    <div class="card-body">
+        <p class="text-muted mb-2">以下操作将影响所有正在使用Emby服务器的用户，请谨慎操作。</p>
+        <form method="POST" action="{{ url_for('system_restart') }}" style="display:inline;">
+            <button type="submit" class="btn btn-danger" data-confirm="确认重启Emby服务器？所有正在播放的会话将被中断！">🔄 重启服务器</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

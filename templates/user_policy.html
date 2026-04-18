@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}用户策略 - {{ user.get('Name', '用户') }} - Emby管理系统{% endblock %}
+{% block topbar_title %}⚙️ 策略配置 · {{ user.get('Name', '') }}{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <p class="text-muted">配置 {{ user.get('Name', '未知') }} 的权限和访问策略</p>
+    <div class="page-actions">
+        <a href="{{ url_for('user_detail', user_id=user.get('Id')) }}" class="btn btn-sm btn-secondary">← 返回详情</a>
+    </div>
+</div>
+
+<form method="POST">
+<div class="card fade-in">
+    <div class="card-header"><h3>📋 基本权限</h3></div>
+    <div class="card-body">
+        <div class="grid-2">
+            <div class="policy-row">
+                <div class="policy-label"><strong>管理员权限</strong><p>允许管理服务器和所有用户</p></div>
+                <label class="switch"><input type="checkbox" name="IsAdministrator" {{ 'checked' if user.get('Policy', {}).get('IsAdministrator') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>禁用账户</strong><p>禁止该用户登录</p></div>
+                <label class="switch"><input type="checkbox" name="IsDisabled" {{ 'checked' if user.get('Policy', {}).get('IsDisabled') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>隐藏用户</strong><p>在登录界面隐藏该用户</p></div>
+                <label class="switch"><input type="checkbox" name="IsHidden" {{ 'checked' if user.get('Policy', {}).get('IsHidden') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>远程访问</strong><p>允许从外网访问</p></div>
+                <label class="switch"><input type="checkbox" name="EnableRemoteAccess" {{ 'checked' if user.get('Policy', {}).get('EnableRemoteAccess') else '' }}><span class="slider"></span></label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3 fade-in">
+    <div class="card-header"><h3>🎬 播放权限</h3></div>
+    <div class="card-body">
+        <div class="grid-2">
+            <div class="policy-row">
+                <div class="policy-label"><strong>媒体播放</strong><p>允许播放媒体内容</p></div>
+                <label class="switch"><input type="checkbox" name="EnableMediaPlayback" {{ 'checked' if user.get('Policy', {}).get('EnableMediaPlayback', True) else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>视频转码</strong><p>允许视频转码播放</p></div>
+                <label class="switch"><input type="checkbox" name="EnableVideoPlaybackTranscoding" {{ 'checked' if user.get('Policy', {}).get('EnableVideoPlaybackTranscoding') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>音频转码</strong><p>允许音频转码播放</p></div>
+                <label class="switch"><input type="checkbox" name="EnableAudioPlaybackTranscoding" {{ 'checked' if user.get('Policy', {}).get('EnableAudioPlaybackTranscoding') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>Remux播放</strong><p>允许Remux无需转码播放</p></div>
+                <label class="switch"><input type="checkbox" name="EnablePlaybackRemuxing" {{ 'checked' if user.get('Policy', {}).get('EnablePlaybackRemuxing') else '' }}><span class="slider"></span></label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3 fade-in">
+    <div class="card-header"><h3>📁 内容权限</h3></div>
+    <div class="card-body">
+        <div class="grid-2">
+            <div class="policy-row">
+                <div class="policy-label"><strong>删除内容</strong><p>允许删除媒体库内容</p></div>
+                <label class="switch"><input type="checkbox" name="EnableContentDeletion" {{ 'checked' if user.get('Policy', {}).get('EnableContentDeletion') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>下载内容</strong><p>允许下载媒体内容</p></div>
+                <label class="switch"><input type="checkbox" name="EnableContentDownloading" {{ 'checked' if user.get('Policy', {}).get('EnableContentDownloading') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>字幕下载</strong><p>允许下载字幕</p></div>
+                <label class="switch"><input type="checkbox" name="EnableSubtitleDownloading" {{ 'checked' if user.get('Policy', {}).get('EnableSubtitleDownloading') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>字幕管理</strong><p>允许管理字幕</p></div>
+                <label class="switch"><input type="checkbox" name="EnableSubtitleManagement" {{ 'checked' if user.get('Policy', {}).get('EnableSubtitleManagement') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>媒体转换</strong><p>允许媒体格式转换</p></div>
+                <label class="switch"><input type="checkbox" name="EnableMediaConversion" {{ 'checked' if user.get('Policy', {}).get('EnableMediaConversion') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>同步转码</strong><p>允许同步转码</p></div>
+                <label class="switch"><input type="checkbox" name="EnableSyncTranscoding" {{ 'checked' if user.get('Policy', {}).get('EnableSyncTranscoding') else '' }}><span class="slider"></span></label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3 fade-in">
+    <div class="card-header"><h3>📺 直播电视</h3></div>
+    <div class="card-body">
+        <div class="grid-2">
+            <div class="policy-row">
+                <div class="policy-label"><strong>直播电视管理</strong><p>允许管理直播电视</p></div>
+                <label class="switch"><input type="checkbox" name="EnableLiveTvManagement" {{ 'checked' if user.get('Policy', {}).get('EnableLiveTvManagement') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>直播电视访问</strong><p>允许观看直播电视</p></div>
+                <label class="switch"><input type="checkbox" name="EnableLiveTvAccess" {{ 'checked' if user.get('Policy', {}).get('EnableLiveTvAccess') else '' }}><span class="slider"></span></label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3 fade-in">
+    <div class="card-header"><h3>🔧 高级设置</h3></div>
+    <div class="card-body">
+        <div class="grid-2">
+            <div class="policy-row">
+                <div class="policy-label"><strong>远程控制其他用户</strong><p>允许远程控制其他用户的播放</p></div>
+                <label class="switch"><input type="checkbox" name="EnableRemoteControlOfOtherUsers" {{ 'checked' if user.get('Policy', {}).get('EnableRemoteControlOfOtherUsers') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>共享设备控制</strong><p>允许控制共享设备</p></div>
+                <label class="switch"><input type="checkbox" name="EnableSharedDeviceControl" {{ 'checked' if user.get('Policy', {}).get('EnableSharedDeviceControl') else '' }}><span class="slider"></span></label>
+            </div>
+            <div class="policy-row">
+                <div class="policy-label"><strong>所有设备访问</strong><p>允许从所有设备访问</p></div>
+                <label class="switch"><input type="checkbox" name="EnableAllDevices" {{ 'checked' if user.get('Policy', {}).get('EnableAllDevices', True) else '' }}><span class="slider"></span></label>
+            </div>
+        </div>
+        <div class="form-group mt-2">
+            <label for="RemoteClientBitrateLimit">远程客户端码率限制 (bps)</label>
+            <input type="number" id="RemoteClientBitrateLimit" name="RemoteClientBitrateLimit"
+                   class="form-control" value="{{ user.get('Policy', {}).get('RemoteClientBitrateLimit', 0) }}"
+                   placeholder="0 表示无限制">
+        </div>
+    </div>
+</div>
+
+<div class="mt-3 fade-in">
+    <button type="submit" class="btn btn-primary">💾 保存策略配置</button>
+    <a href="{{ url_for('user_detail', user_id=user.get('Id')) }}" class="btn btn-secondary">取消</a>
+</div>
+</form>
+{% endblock %}

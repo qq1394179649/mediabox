@@ -1,0 +1,568 @@
+{% extends "base.html" %}
+
+{% block title %}媒体刮削 - Emby管理系统{% endblock %}
+{% block topbar_title %}🎬 媒体刮削{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h1>🎬 媒体刮削工具</h1>
+    <p>自动从TMDB获取媒体信息，失败时自动尝试豆瓣备选</p>
+</div>
+
+<!-- 刮削配置检查 -->
+{% if not tmdb_api_key %}
+<div class="alert alert-warning fade-in">
+    <strong>⚠️ 提示：</strong>尚未配置TMDB API Key，请在
+    <a href="{{ url_for('app_settings') }}">系统设置</a>
+    中配置后再使用刮削功能。
+</div>
+{% endif %}
+
+<!-- 搜索表单 -->
+<div class="card fade-in">
+    <div class="card-header">
+        <h3>🔍 搜索媒体</h3>
+    </div>
+    <div class="card-body">
+        <form id="scrape-form" onsubmit="return false;">
+            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label for="search_title">媒体标题</label>
+                    <input type="text" id="search_title" class="form-control"
+                           placeholder="输入电影或电视剧名称" required>
+                </div>
+                <div class="form-group">
+                    <label for="search_year">年份</label>
+                    <input type="number" id="search_year" class="form-control"
+                           placeholder="如: 2023" min="1900" max="2030">
+                </div>
+                <div class="form-group">
+                    <label for="item_type">类型</label>
+                    <select id="item_type" class="form-control">
+                        <option value="movie">电影</option>
+                        <option value="series">电视剧</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end;">
+                    <button type="button" id="search-btn" class="btn btn-primary" onclick="searchMedia()" style="width:100%;">
+                        🔍 搜索
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 刮削结果 -->
+<div class="card mt-3 fade-in" id="result-card" style="display:none;">
+    <div class="card-header">
+        <h3 id="result-title">刮削结果</h3>
+        <div>
+            <span class="badge badge-success" id="result-source"></span>
+            <span class="badge badge-info" id="result-type"></span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div style="display:grid; grid-template-columns: 200px 1fr; gap:24px;">
+            <!-- 海报 -->
+            <div>
+                <img id="result-poster" src="" alt="海报"
+                     style="width:100%; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+            </div>
+            <!-- 详细信息 -->
+            <div>
+                <div class="form-group">
+                    <label>标题</label>
+                    <input type="text" id="result-metadata-title" class="form-control" readonly>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label>原标题</label>
+                        <input type="text" id="result-metadata-original-title" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>发行日期</label>
+                        <input type="text" id="result-metadata-date" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>评分</label>
+                        <input type="text" id="result-metadata-rating" class="form-control" readonly>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>简介</label>
+                    <textarea id="result-metadata-overview" class="form-control" rows="4" readonly
+                              style="resize:none;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <div id="result-metadata-genres"></div>
+                </div>
+                <div class="form-group">
+                    <label>导演/创作者</label>
+                    <input type="text" id="result-metadata-director" class="form-control" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 批量刮削 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>📦 批量刮削</h3>
+        <span class="badge badge-warning">从媒体库选择</span>
+    </div>
+    <div class="card-body">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
+            <div class="form-group">
+                <label for="batch-folder">媒体库</label>
+                <select id="batch-folder" class="form-control">
+                    <option value="">全部媒体库</option>
+                    {% for folder in media_folders %}
+                    <option value="{{ folder.get('Id', '') }}">{{ folder.get('Name', '未知') }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="batch-type">类型</label>
+                <select id="batch-type" class="form-control">
+                    <option value="Movie,Series">全部</option>
+                    <option value="Movie">仅电影</option>
+                    <option value="Series">仅电视剧</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="batch-limit">刮削数量</label>
+                <input type="number" id="batch-limit" class="form-control" value="20" min="1" max="100">
+            </div>
+        </div>
+        <div class="d-flex gap-1 mt-2">
+            <button type="button" class="btn btn-primary" onclick="startBatchScrape()">🚀 开始批量刮削</button>
+            <button type="button" class="btn btn-secondary" onclick="stopBatchScrape()">⏹ 停止</button>
+        </div>
+
+        <!-- 进度条 -->
+        <div id="batch-progress" style="display:none; margin-top:16px;">
+            <div class="d-flex justify-between mb-1">
+                <span id="progress-text">0 / 0</span>
+                <span id="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+            </div>
+        </div>
+
+        <!-- 结果统计 -->
+        <div id="batch-stats" style="display:none; margin-top:16px;">
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px;">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total">0</div>
+                    <div class="stat-label">总计</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-success">0</div>
+                    <div class="stat-label">成功</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-failed">0</div>
+                    <div class="stat-label">失败</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-pending">0</div>
+                    <div class="stat-label">待处理</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果列表 -->
+        <div id="batch-results" style="display:none; margin-top:16px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>状态</th>
+                        <th>标题</th>
+                        <th>类型</th>
+                        <th>刮削源</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="batch-results-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 媒体库选择 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>📁 手动选择刮削</h3>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">从媒体库中选择需要刮削的项目</p>
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <select id="manual-folder" class="form-control" style="max-width:300px;" onchange="loadLibraryItems()">
+                <option value="">选择媒体库</option>
+                {% for folder in media_folders %}
+                <option value="{{ folder.get('Id', '') }}">{{ folder.get('Name', '未知') }}</option>
+                {% endfor %}
+            </select>
+            <select id="manual-type" class="form-control" style="max-width:200px;">
+                <option value="Movie,Series">全部</option>
+                <option value="Movie">仅电影</option>
+                <option value="Series">仅电视剧</option>
+            </select>
+            <button type="button" class="btn btn-secondary" onclick="loadLibraryItems()">🔄 加载</button>
+        </div>
+
+        <div id="library-items" style="display:none;">
+            <div class="d-flex justify-between align-center mb-2">
+                <span id="items-count">0 个项目</span>
+                <button type="button" class="btn btn-sm btn-primary" onclick="scrapeSelected()">
+                    🎬 刮削选中项
+                </button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">
+                            <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                        </th>
+                        <th>海报</th>
+                        <th>标题</th>
+                        <th>类型</th>
+                        <th>年份</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="library-items-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    text-align: center;
+}
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary);
+}
+.stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+.progress-bar {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s ease;
+}
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 全局状态
+let batchRunning = false;
+let batchAbortController = null;
+let batchResults = [];
+
+// 搜索媒体
+async function searchMedia() {
+    const title = document.getElementById('search_title').value.trim();
+    const year = document.getElementById('search_year').value;
+    const itemType = document.getElementById('item_type').value;
+
+    if (!title) {
+        alert('请输入搜索标题');
+        return;
+    }
+
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 搜索中...';
+
+    try {
+        const params = new URLSearchParams({ title, type: itemType });
+        if (year) params.append('year', year);
+
+        const resp = await fetch(`/api/scraper/search?${params}`);
+        const data = await resp.json();
+
+        if (data.error) {
+            // 显示更详细的错误信息
+            let errorMsg = '搜索失败: ' + data.error;
+            if (data.details) {
+                errorMsg += '\n\n💡 ' + data.details;
+            }
+            if (data.error_code) {
+                console.error('刮削错误码:', data.error_code);
+            }
+            alert(errorMsg);
+        } else {
+            displayResult(data);
+        }
+    } catch (err) {
+        alert('请求失败: ' + err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🔍 搜索';
+    }
+}
+
+// 显示刮削结果
+function displayResult(result) {
+    const card = document.getElementById('result-card');
+    card.style.display = 'block';
+
+    document.getElementById('result-title').textContent = result.title || result.name || '未知标题';
+    document.getElementById('result-source').textContent = result.source || '未知';
+    document.getElementById('result-type').textContent = itemType === 'movie' ? '电影' : '电视剧';
+
+    // 海报
+    const poster = document.getElementById('result-poster');
+    poster.src = result.poster_url || '/static/no-poster.png';
+    poster.onerror = () => { poster.src = '/static/no-poster.png'; };
+
+    // 元数据
+    document.getElementById('result-metadata-title').value = result.title || result.name || '';
+    document.getElementById('result-metadata-original-title').value = result.original_title || result.original_name || '';
+    document.getElementById('result-metadata-date').value = result.release_date || result.first_air_date || '';
+    document.getElementById('result-metadata-rating').value = result.vote_average ? result.vote_average.toFixed(1) + ' / 10' : 'N/A';
+    document.getElementById('result-metadata-overview').value = result.overview || '暂无简介';
+    document.getElementById('result-metadata-director').value = result.director || result.creator || '';
+
+    // 类型标签
+    const genresDiv = document.getElementById('result-metadata-genres');
+    genresDiv.innerHTML = '';
+    if (result.genres && result.genres.length) {
+        result.genres.forEach(g => {
+            const span = document.createElement('span');
+            span.className = 'badge badge-secondary';
+            span.style.marginRight = '4px';
+            span.textContent = g;
+            genresDiv.appendChild(span);
+        });
+    }
+}
+
+// 批量刮削
+async function startBatchScrape() {
+    const folderId = document.getElementById('batch-folder').value;
+    const itemType = document.getElementById('batch-type').value;
+    const limit = parseInt(document.getElementById('batch-limit').value);
+
+    batchRunning = true;
+    batchResults = [];
+    batchAbortController = new AbortController();
+
+    document.getElementById('batch-progress').style.display = 'block';
+    document.getElementById('batch-stats').style.display = 'block';
+    document.getElementById('batch-results').style.display = 'block';
+    document.getElementById('batch-results-body').innerHTML = '';
+
+    try {
+        const resp = await fetch('/api/scraper/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folder_id: folderId, item_type: itemType, limit: limit }),
+            signal: batchAbortController.signal
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('批量刮削失败: ' + data.error);
+            return;
+        }
+
+        // 处理流式响应
+        const reader = data.getReader ? data : null;
+        // 实际使用SSE或轮询方式
+        pollBatchResults();
+
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            alert('请求失败: ' + err);
+        }
+    }
+}
+
+// 轮询获取批量刮削结果
+async function pollBatchResults() {
+    if (!batchRunning) return;
+
+    try {
+        const resp = await fetch('/api/scraper/batch/status');
+        const data = await resp.json();
+
+        updateBatchUI(data);
+
+        if (data.status === 'running') {
+            setTimeout(pollBatchResults, 1000);
+        } else {
+            batchRunning = false;
+        }
+    } catch (err) {
+        console.error('轮询失败:', err);
+        if (batchRunning) {
+            setTimeout(pollBatchResults, 2000);
+        }
+    }
+}
+
+// 更新批量刮削UI
+function updateBatchUI(data) {
+    const total = data.total || 0;
+    const completed = data.completed || 0;
+    const success = data.success || 0;
+    const failed = data.failed || 0;
+    const percent = total > 0 ? Math.round(completed / total * 100) : 0;
+
+    document.getElementById('progress-text').textContent = `${completed} / ${total}`;
+    document.getElementById('progress-percent').textContent = `${percent}%`;
+    document.getElementById('progress-fill').style.width = `${percent}%`;
+
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-success').textContent = success;
+    document.getElementById('stat-failed').textContent = failed;
+    document.getElementById('stat-pending').textContent = total - completed;
+}
+
+// 停止批量刮削
+function stopBatchScrape() {
+    batchRunning = false;
+    if (batchAbortController) {
+        batchAbortController.abort();
+    }
+    fetch('/api/scraper/batch/stop', { method: 'POST' });
+}
+
+// 加载媒体库项目
+async function loadLibraryItems() {
+    const folderId = document.getElementById('manual-folder').value;
+    const itemType = document.getElementById('manual-type').value;
+
+    if (!folderId) {
+        alert('请选择媒体库');
+        return;
+    }
+
+    const resp = await fetch(`/api/scraper/library-items?folder_id=${folderId}&type=${itemType}`);
+    const data = await resp.json();
+
+    if (data.error) {
+        alert('加载失败: ' + data.error);
+        return;
+    }
+
+    const container = document.getElementById('library-items');
+    container.style.display = 'block';
+    document.getElementById('items-count').textContent = `${data.items.length} 个项目`;
+
+    const tbody = document.getElementById('library-items-body');
+    tbody.innerHTML = '';
+
+    data.items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <input type="checkbox" class="item-checkbox" value="${item.id}">
+            </td>
+            <td>
+                <img src="${item.image || '/static/no-poster.png'}"
+                     style="width:40px; height:60px; object-fit:cover; border-radius:4px;"
+                     onerror="this.src='/static/no-poster.png'">
+            </td>
+            <td>${item.name}</td>
+            <td>${item.type === 'Movie' ? '电影' : '电视剧'}</td>
+            <td>${item.year || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="scrapeItem('${item.id}')">
+                    🎬 刮削
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// 全选/取消全选
+function toggleSelectAll() {
+    const checked = document.getElementById('select-all').checked;
+    document.querySelectorAll('.item-checkbox').forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+// 刮削单个项目
+async function scrapeItem(itemId) {
+    try {
+        const resp = await fetch('/api/scraper/scrape-item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: itemId })
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            // 显示更详细的错误信息
+            let errorMsg = '刮削失败: ' + data.error;
+            if (data.title) {
+                errorMsg = `刮削失败 [${data.title}]:\n` + data.error;
+            }
+            if (data.details) {
+                errorMsg += '\n\n💡 ' + data.details;
+            }
+            if (data.error_code) {
+                console.error('刮削错误码:', data.error_code);
+            }
+            alert(errorMsg);
+        } else {
+            alert(`刮削成功！\n来源: ${data.source}\n标题: ${data.title || data.name}`);
+        }
+    } catch (err) {
+        alert('请求失败: ' + err);
+    }
+}
+
+// 刮削选中项
+async function scrapeSelected() {
+    const checkboxes = document.querySelectorAll('.item-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('请选择要刮削的项目');
+        return;
+    }
+
+    const itemIds = Array.from(checkboxes).map(cb => cb.value);
+    if (!confirm(`确定要刮削选中的 ${itemIds.length} 个项目吗？`)) return;
+
+    for (const itemId of itemIds) {
+        await scrapeItem(itemId);
+    }
+    alert('批量刮削完成！');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}程序日志 - MediaBox{% endblock %}
+{% block topbar_title %}程序日志{% endblock %}
+
+{% block content %}
+<div class="page-container fade-in">
+    <div class="logs-header">
+        <div class="logs-info">
+            <div class="logs-info-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>{{ log_file }}</span>
+            </div>
+            <div class="logs-info-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+                <span>{{ total_lines }} 行</span>
+            </div>
+            <div class="logs-info-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>{{ '%.1f'|format(total_size / 1024) }} KB</span>
+            </div>
+        </div>
+        <div class="logs-actions">
+            <button onclick="location.reload()" class="btn btn-sm btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                </svg>
+                刷新
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-ghost">返回仪表盘</a>
+        </div>
+    </div>
+
+    <div class="logs-terminal">
+        {% if log_lines %}
+        <pre class="logs-content">{% for line in log_lines %}<span class="log-line">{{ line | e }}</span>{% endfor %}</pre>
+        {% else %}
+        <div class="logs-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".3">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <p>暂无日志记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.logs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.logs-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.logs-info-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.logs-info-item svg {
+    color: var(--text-secondary);
+}
+
+.logs-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logs-terminal {
+    background: var(--bg-darker);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.logs-content {
+    margin: 0;
+    padding: 20px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.log-line {
+    display: block;
+}
+
+.log-line:hover {
+    background: var(--nav-hover-bg);
+}
+
+.logs-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    color: var(--text-muted);
+}
+
+.logs-empty p {
+    margin-top: 16px;
+    font-size: 14px;
+}
+</style>
+{% endblock %}

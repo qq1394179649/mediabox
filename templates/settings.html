@@ -1,0 +1,715 @@
+{% extends "base.html" %}
+
+{% block title %}应用设置 - Emby管理系统{% endblock %}
+{% block topbar_title %}🎨 应用设置{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <div class="d-flex justify-between align-items-center">
+        <div>
+            <h1>🎨 应用设置</h1>
+            <p>配置Emby服务器连接、自定义主题颜色</p>
+        </div>
+        <a href="{{ url_for('setup_wizard') }}" class="btn btn-secondary btn-sm">
+            🔄 重新设置
+        </a>
+    </div>
+</div>
+
+<!-- Emby服务器配置 -->
+<div class="card fade-in">
+    <div class="card-header">
+        <h3>🖥️ Emby服务器配置</h3>
+        <div>
+            {% if emby_online %}
+            <span class="badge badge-success">✅ 已连接</span>
+            {% else %}
+            <span class="badge badge-danger">❌ 未连接</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="emby-config-form">
+            <input type="hidden" name="form_type" value="emby_config">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                <div class="form-group">
+                    <label for="emby_server_url">服务器地址</label>
+                    <input type="text" id="emby_server_url" name="emby_server_url" class="form-control"
+                           value="{{ current_url }}" placeholder="http://192.168.1.100:8096" required>
+                    <p class="text-muted mt-1" style="font-size:12px;">含协议和端口，如 http://192.168.1.100:8096</p>
+                </div>
+                <div class="form-group">
+                    <label for="emby_api_key">API 密钥</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="password" id="emby_api_key" name="emby_api_key" class="form-control"
+                               value="{{ current_key }}" placeholder="输入Emby API密钥" style="flex:1;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleApiKeyVisibility()">👁️</button>
+                    </div>
+                    <p class="text-muted mt-1" style="font-size:12px;">在Emby控制台 → API密钥 中获取</p>
+                </div>
+            </div>
+
+            <div class="d-flex gap-1 mt-2">
+                <button type="submit" class="btn btn-primary">💾 保存配置</button>
+                <button type="button" class="btn btn-secondary" onclick="testConnection()">🔍 测试连接</button>
+            </div>
+        </form>
+
+        <!-- 连接测试结果 -->
+        <div id="test-result" style="display:none; margin-top:16px; padding:16px; border-radius:var(--radius-sm);"></div>
+    </div>
+</div>
+
+<!-- 主题选择 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>🎨 主题设置</h3>
+        <span class="badge badge-primary" id="current-theme-badge">当前: {{ themes[current_theme].get('name', current_theme) if current_theme in themes else current_theme }}</span>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="theme-form">
+            <input type="hidden" name="form_type" value="theme_config">
+
+            <!-- 预置主题卡片 -->
+            <p style="margin-bottom:16px; color:var(--text-secondary);">选择预置主题（点击即可实时预览）：</p>
+            <div class="theme-grid">
+                {% for tid, tdata in themes.items() %}
+                <label class="theme-card {% if current_theme == tid %}active{% endif %}" onclick="previewTheme('{{ tid }}')">
+                    <input type="radio" name="theme_id" value="{{ tid }}" {% if current_theme == tid %}checked{% endif %} style="display:none;">
+                    <div class="theme-preview">
+                        <div style="background:{{ tdata['primary'] }}; width:100%; height:6px; border-radius:3px 3px 0 0;"></div>
+                        <div style="display:flex; height:40px;">
+                            <div style="background:{{ tdata.get('sidebar-bg', '#111') }}; width:30%;"></div>
+                            <div style="background:{{ tdata.get('bg-body', '#111') }}; flex:1; padding:6px;">
+                                <div style="background:{{ tdata.get('card-bg', '#222') }}; height:8px; border-radius:3px; margin-bottom:4px; width:80%;"></div>
+                                <div style="background:{{ tdata.get('border-color', '#333') }}; height:6px; border-radius:2px; width:60%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="theme-label">
+                        <span class="theme-dot" style="background:{{ tdata['primary'] }};"></span>
+                        {{ tdata['name'] }}
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+
+            <!-- 自定义颜色覆盖 -->
+            <div id="custom-colors" style="margin-top:24px;">
+                <p style="margin-bottom:12px; color:var(--text-secondary);">自定义颜色（覆盖当前主题，留空使用主题默认值）：</p>
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:12px;">
+                    <div class="color-field">
+                        <label>主色调</label>
+                        <div class="d-flex align-center gap-1">
+                            <input type="color" name="color_primary" value="{{ custom_colors.get('primary', theme_colors.get('primary', '#52b54b')) }}" class="color-picker" disabled>
+                            <input type="text" class="form-control color-hex" data-target="color_primary" value="{{ custom_colors.get('primary', '') }}" placeholder="留空用默认">
+                        </div>
+                    </div>
+                    <div class="color-field">
+                        <label>背景色</label>
+                        <div class="d-flex align-center gap-1">
+                            <input type="color" name="color_bg-body" value="{{ custom_colors.get('bg-body', theme_colors.get('bg-body', '#0b1a0e')) }}" class="color-picker" disabled>
+                            <input type="text" class="form-control color-hex" data-target="color_bg-body" value="{{ custom_colors.get('bg-body', '') }}" placeholder="留空用默认">
+                        </div>
+                    </div>
+                    <div class="color-field">
+                        <label>卡片背景</label>
+                        <div class="d-flex align-center gap-1">
+                            <input type="color" name="color_card-bg" value="{{ custom_colors.get('card-bg', theme_colors.get('card-bg', '#0f2012')) }}" class="color-picker" disabled>
+                            <input type="text" class="form-control color-hex" data-target="color_card-bg" value="{{ custom_colors.get('card-bg', '') }}" placeholder="留空用默认">
+                        </div>
+                    </div>
+                    <div class="color-field">
+                        <label>主文字色</label>
+                        <div class="d-flex align-center gap-1">
+                            <input type="color" name="color_text-primary" value="{{ custom_colors.get('text-primary', theme_colors.get('text-primary', '#e8f5e9')) }}" class="color-picker" disabled>
+                            <input type="text" class="form-control color-hex" data-target="color_text-primary" value="{{ custom_colors.get('text-primary', '') }}" placeholder="留空用默认">
+                        </div>
+                    </div>
+                    <div class="color-field">
+                        <label>次文字色</label>
+                        <div class="d-flex align-center gap-1">
+                            <input type="color" name="color_text-secondary" value="{{ custom_colors.get('text-secondary', theme_colors.get('text-secondary', '#81c784')) }}" class="color-picker" disabled>
+                            <input type="text" class="form-control color-hex" data-target="color_text-secondary" value="{{ custom_colors.get('text-secondary', '') }}" placeholder="留空用默认">
+                        </div>
+                    </div>
+                    <div class="color-field">
+                        <label>边框色</label>
+                        <div class="d-flex align-center gap-1">
+                            <input type="color" name="color_border-color" value="{{ custom_colors.get('border-color', theme_colors.get('border-color', '#1a3520')) }}" class="color-picker" disabled>
+                            <input type="text" class="form-control color-hex" data-target="color_border-color" value="{{ custom_colors.get('border-color', '') }}" placeholder="留空用默认">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-1 mt-3">
+                <button type="submit" class="btn btn-primary">💾 应用主题</button>
+                <button type="button" class="btn btn-secondary" onclick="resetCustomColors()">🔄 重置自定义颜色</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 刮削设置 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>🎬 媒体刮削设置</h3>
+        <div class="d-flex gap-1 align-center">
+            <span class="badge badge-info">TMDB</span>
+            <span class="badge badge-secondary">豆瓣</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="scraper-config-form">
+            <input type="hidden" name="form_type" value="scraper_config">
+
+            <!-- TMDB API Key -->
+            <div class="scraper-section">
+                <div class="scraper-section-title">
+                    <span class="scraper-icon">🔑</span>
+                    <div>
+                        <strong>TMDB API 密钥</strong>
+                        <p class="text-muted" style="font-size:12px; margin:2px 0 0;">从 <a href="https://www.themoviedb.org/settings/api" target="_blank" style="color:var(--primary);">TMDB官网</a> 获取，用于刮削电影/电视剧的封面、简介、演员等信息</p>
+                    </div>
+                </div>
+                <div class="api-key-input-group">
+                    <input type="password" id="tmdb_api_key" name="tmdb_api_key" class="form-control"
+                           value="{{ tmdb_api_key }}" placeholder="输入TMDB API密钥">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleTMDBKeyVisibility()">👁️</button>
+                </div>
+            </div>
+
+            <!-- 代理设置 -->
+            <div class="scraper-section">
+                <div class="scraper-section-title">
+                    <span class="scraper-icon">🌐</span>
+                    <div>
+                        <strong>网络代理</strong>
+                        <p class="text-muted" style="font-size:12px; margin:2px 0 0;">如需访问外网API（如TMDB），请配置代理地址</p>
+                    </div>
+                </div>
+                <div class="scraper-proxy-grid">
+                    <div class="proxy-toggle-row">
+                        <label class="switch-toggle">
+                            <input type="checkbox" name="scraper_proxy_enabled" id="scraper_proxy_enabled"
+                                   {% if scraper_proxy_enabled %}checked{% endif %}
+                                   onchange="toggleProxyInput()">
+                            <span class="switch-slider"></span>
+                        </label>
+                        <span style="font-size:14px;">启用代理</span>
+                        <span class="proxy-status-tag {% if scraper_proxy_enabled %}active{% else %}inactive{% endif %}" id="proxy-status-tag">
+                            {% if scraper_proxy_enabled %}已启用{% else %}已关闭{% endif %}
+                        </span>
+                    </div>
+                    <div class="proxy-url-input" id="proxy-input-group">
+                        <div class="proxy-url-field">
+                            <span class="proxy-url-prefix">http://</span>
+                            <input type="text" id="scraper_proxy" name="scraper_proxy" class="form-control"
+                                   value="{{ scraper_proxy }}" placeholder="10.0.0.95:20172"
+                                   {% if not scraper_proxy_enabled %}disabled{% endif %}>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 备选源 -->
+            <div class="scraper-section">
+                <div class="scraper-section-title">
+                    <span class="scraper-icon">🔄</span>
+                    <div>
+                        <strong>备选刮削源</strong>
+                        <p class="text-muted" style="font-size:12px; margin:2px 0 0;">当TMDB刮削失败时，自动尝试从豆瓣获取信息</p>
+                    </div>
+                </div>
+                <div class="douban-toggle-row">
+                    <label class="switch-toggle">
+                        <input type="checkbox" name="douban_fallback" id="douban_fallback"
+                               {% if douban_fallback %}checked{% endif %}>
+                        <span class="switch-slider"></span>
+                    </label>
+                    <div>
+                        <span style="font-size:14px;">豆瓣备选</span>
+                        <span class="badge badge-secondary" style="margin-left:6px; font-size:10px;">DOUBAN</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="d-flex gap-1 mt-3" style="padding-top:16px; border-top:1px solid var(--border-color);">
+                <button type="submit" class="btn btn-primary">💾 保存刮削配置</button>
+                <button type="button" class="btn btn-secondary" onclick="testScraperNetwork()">🌐 测试网络</button>
+                <a href="{{ url_for('media_scraper') }}" class="btn btn-secondary">🔍 前往刮削工具</a>
+            </div>
+
+            <!-- 网络测试结果 -->
+            <div id="scraper-test-result" style="display:none; margin-top:16px; padding:16px; border-radius:var(--radius-sm);"></div>
+        </form>
+    </div>
+</div>
+
+<!-- 快捷设置 -->
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>⚡ 快捷操作</h3>
+    </div>
+    <div class="card-body">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+            <div class="d-flex align-center justify-between" style="padding:12px 0; border-bottom:1px solid var(--border-color);">
+                <div>
+                    <strong>清空API缓存</strong>
+                    <p class="text-muted" style="font-size:12px;">清除服务端缓存数据，强制刷新</p>
+                </div>
+                <button onclick="fetch('/api/status').then(()=>location.reload())" class="btn btn-sm btn-secondary">🗑️ 清除</button>
+            </div>
+            <div class="d-flex align-center justify-between" style="padding:12px 0; border-bottom:1px solid var(--border-color);">
+                <div>
+                    <strong>返回仪表盘</strong>
+                    <p class="text-muted" style="font-size:12px;">回到系统概览页面</p>
+                </div>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-primary">📊 前往</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.theme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+}
+.theme-card {
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all var(--transition);
+    background: var(--card-bg);
+}
+.theme-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+.theme-card.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.theme-preview {
+    height: 46px;
+    overflow: hidden;
+}
+.theme-label {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+}
+.theme-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.color-field label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    display: block;
+}
+.color-picker {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    padding: 2px;
+    background: var(--card-bg);
+    flex-shrink: 0;
+}
+.color-picker::-webkit-color-swatch-wrapper { padding: 2px; }
+.color-picker::-webkit-color-swatch { border: none; border-radius: 4px; }
+.color-hex {
+    font-family: var(--font-mono) !important;
+    font-size: 13px !important;
+}
+
+/* 刮削设置美化 */
+.scraper-section {
+    padding: 20px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+}
+.scraper-section:last-of-type {
+    margin-bottom: 0;
+}
+.scraper-section-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.scraper-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+.scraper-section-title strong {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 0;
+}
+
+/* API Key 输入组 */
+.api-key-input-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.api-key-input-group .form-control {
+    font-family: var(--font-mono, monospace);
+    font-size: 14px;
+}
+
+/* 代理网格 */
+.scraper-proxy-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.proxy-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.proxy-status-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+.proxy-status-tag.active {
+    background: rgba(102,187,106,0.15);
+    color: var(--success);
+    border: 1px solid rgba(102,187,106,0.3);
+}
+.proxy-status-tag.inactive {
+    background: rgba(158,158,158,0.1);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+.proxy-url-field {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+.proxy-url-prefix {
+    padding: 8px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-right: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    font-family: var(--font-mono, monospace);
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.proxy-url-field .form-control {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+    font-family: var(--font-mono, monospace);
+}
+
+/* 开关样式 */
+.switch-toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+.switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border-color);
+    border-radius: 24px;
+    transition: 0.3s;
+}
+.switch-slider::before {
+    content: '';
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+.switch-toggle input:checked + .switch-slider {
+    background: var(--primary);
+}
+.switch-toggle input:checked + .switch-slider::before {
+    transform: translateX(20px);
+}
+
+/* 豆瓣切换行 */
+.douban-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 所有主题数据（从服务端注入）
+const ALL_THEMES = {{ themes | tojson }};
+
+// 切换API密钥可见性
+function toggleApiKeyVisibility() {
+    const input = document.getElementById('emby_api_key');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+// 切换TMDB密钥可见性
+function toggleTMDBKeyVisibility() {
+    const input = document.getElementById('tmdb_api_key');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+// 切换代理输入框启用状态
+function toggleProxyInput() {
+    const enabled = document.getElementById('scraper_proxy_enabled').checked;
+    const proxyInput = document.getElementById('scraper_proxy');
+    const statusTag = document.getElementById('proxy-status-tag');
+    proxyInput.disabled = !enabled;
+    if (statusTag) {
+        statusTag.textContent = enabled ? '已启用' : '已关闭';
+        statusTag.className = 'proxy-status-tag ' + (enabled ? 'active' : 'inactive');
+    }
+}
+
+// 测试刮削网络连接
+function testScraperNetwork() {
+    const apiKey = document.getElementById('tmdb_api_key').value;
+    const proxyEnabled = document.getElementById('scraper_proxy_enabled').checked;
+    const proxy = document.getElementById('scraper_proxy').value;
+    const result = document.getElementById('scraper-test-result');
+
+    result.style.display = 'block';
+    result.style.background = 'rgba(41,182,246,0.1)';
+    result.style.border = '1px solid rgba(41,182,246,0.3)';
+    result.style.color = 'var(--info)';
+    result.innerHTML = '⏳ 正在测试网络连接...';
+
+    fetch('/api/scraper/network-test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({api_key: apiKey, proxy: proxy, proxy_enabled: proxyEnabled, target: 'tmdb'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        let html = '<h4 style="margin-bottom:12px;">网络检测结果</h4>';
+        html += '<p style="margin-bottom:8px;"><strong>代理配置:</strong> ' + data.proxy_url + '</p>';
+        html += '<div style="display:flex; flex-direction:column; gap:8px;">';
+
+        data.tests.forEach(test => {
+            const icon = test.status === 'success' ? '✅' : (test.status === 'warning' ? '⚠️' : '❌');
+            const bg = test.status === 'success' ? 'rgba(102,187,106,0.15)' :
+                       (test.status === 'warning' ? 'rgba(255,193,7,0.15)' : 'rgba(239,83,80,0.15)');
+            html += '<div style="padding:10px; border-radius:6px; background:' + bg + '; display:flex; justify-content:space-between; align-items:center;">';
+            html += '<span><strong>' + test.name + ':</strong> ' + test.message + '</span>';
+            html += '<span>' + icon + '</span>';
+            html += '</div>';
+        });
+
+        html += '</div>';
+
+        // 添加诊断建议
+        const hasError = data.tests.some(t => t.status === 'error');
+        if (hasError) {
+            html += '<div style="margin-top:16px; padding:12px; border-radius:6px; background:rgba(255,193,7,0.1); border:1px solid rgba(255,193,7,0.3);">';
+            html += '<strong>💡 诊断建议:</strong><ul style="margin:8px 0 0 20px; padding-left:0;">';
+            html += '<li>如果代理连接失败，请检查代理服务器是否运行</li>';
+            html += '<li>如果TMDB连接失败，请确认代理能访问外网</li>';
+            html += '<li>如果API Key无效，请到TMDB官网重新申请</li>';
+            html += '</ul></div>';
+        }
+
+        result.innerHTML = html;
+        result.style.background = hasError ? 'rgba(239,83,80,0.05)' : 'rgba(102,187,106,0.05)';
+    })
+    .catch(err => {
+        result.style.background = 'rgba(239,83,80,0.1)';
+        result.style.border = '1px solid rgba(239,83,80,0.3)';
+        result.style.color = 'var(--danger)';
+        result.innerHTML = '❌ 请求失败: ' + err;
+    });
+}
+
+// 测试Emby连接
+function testConnection() {
+    const url = document.getElementById('emby_server_url').value;
+    const key = document.getElementById('emby_api_key').value;
+    const result = document.getElementById('test-result');
+
+    result.style.display = 'block';
+    result.style.background = 'rgba(41,182,246,0.1)';
+    result.style.border = '1px solid rgba(41,182,246,0.3)';
+    result.style.color = 'var(--info)';
+    result.innerHTML = '⏳ 正在测试连接...';
+
+    fetch('/api/test-connection', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({url: url, api_key: key})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            result.style.background = 'rgba(102,187,106,0.1)';
+            result.style.border = '1px solid rgba(102,187,106,0.3)';
+            result.style.color = 'var(--success)';
+            result.innerHTML = '✅ ' + data.message + (data.version ? ' (v' + data.version + ')' : '');
+        } else {
+            result.style.background = 'rgba(239,83,80,0.1)';
+            result.style.border = '1px solid rgba(239,83,80,0.3)';
+            result.style.color = 'var(--danger)';
+            result.innerHTML = '❌ ' + data.message;
+        }
+    })
+    .catch(err => {
+        result.style.background = 'rgba(239,83,80,0.1)';
+        result.style.border = '1px solid rgba(239,83,80,0.3)';
+        result.style.color = 'var(--danger)';
+        result.innerHTML = '❌ 请求失败: ' + err;
+    });
+}
+
+// 实时预览主题 —— 点击主题卡片时立即更新CSS变量
+function previewTheme(themeId) {
+    const themeData = ALL_THEMES[themeId];
+    if (!themeData) return;
+
+    const root = document.documentElement;
+
+    // 遍历主题数据中所有非name字段，更新:root CSS变量
+    Object.keys(themeData).forEach(function(key) {
+        if (key === 'name') return;
+        root.style.setProperty('--' + key, themeData[key]);
+    });
+
+    // 更新选中状态
+    document.querySelectorAll('.theme-card').forEach(function(c) { c.classList.remove('active'); });
+    event.currentTarget.classList.add('active');
+    document.querySelector('input[name="theme_id"][value="' + themeId + '"]').checked = true;
+
+    // 更新当前主题badge
+    var badge = document.getElementById('current-theme-badge');
+    if (badge) badge.textContent = '当前: ' + themeData.name;
+
+    // 清空自定义颜色（因为切换了基础主题）
+    resetCustomColors();
+    
+    // 更新 color picker 的预览值为新主题的颜色
+    var colorMap = {
+        'color_primary': 'primary',
+        'color_bg-body': 'bg-body',
+        'color_card-bg': 'card-bg',
+        'color_text-primary': 'text-primary',
+        'color_text-secondary': 'text-secondary',
+        'color_border-color': 'border-color'
+    };
+    Object.keys(colorMap).forEach(function(formField) {
+        var themeKey = colorMap[formField];
+        var picker = document.querySelector('input[name="' + formField + '"]');
+        if (picker && themeData[themeKey]) {
+            picker.value = themeData[themeKey];
+            // 保持 disabled，只有用户主动输入才启用
+        }
+    });
+}
+
+// 颜色选择器与文本框联动
+document.querySelectorAll('.color-picker').forEach(function(picker) {
+    picker.addEventListener('input', function() {
+        var name = this.name;
+        var hexInput = document.querySelector('.color-hex[data-target="' + name + '"]');
+        if (hexInput) hexInput.value = this.value;
+
+        // 实时预览自定义颜色
+        var cssVar = name.replace('color_', '');
+        document.documentElement.style.setProperty('--' + cssVar, this.value);
+    });
+});
+
+document.querySelectorAll('.color-hex').forEach(function(hex) {
+    hex.addEventListener('input', function() {
+        var target = this.dataset.target;
+        var picker = document.querySelector('input[name="' + target + '"]');
+        
+        if (this.value.match(/^#[0-9a-fA-F]{6}$/)) {
+            if (picker) {
+                picker.value = this.value;
+                picker.disabled = false; // 有值时启用
+            }
+            // 实时预览自定义颜色
+            var cssVar = target.replace('color_', '');
+            document.documentElement.style.setProperty('--' + cssVar, this.value);
+        } else if (this.value.trim() === '') {
+            if (picker) picker.disabled = true; // 清空时禁用，不随表单提交
+        }
+    });
+});
+
+// 表单提交前：确保空的hex字段对应的color picker被禁用（不会提交）
+document.getElementById('theme-form').addEventListener('submit', function() {
+    document.querySelectorAll('.color-hex').forEach(function(hex) {
+        var target = hex.dataset.target;
+        var picker = document.querySelector('input[name="' + target + '"]');
+        if (picker && hex.value.trim() === '') {
+            picker.disabled = true;
+        }
+    });
+});
+
+// 重置自定义颜色
+function resetCustomColors() {
+    document.querySelectorAll('.color-hex').forEach(function(hex) { hex.value = ''; });
+    document.querySelectorAll('input[name^="color_"]').forEach(function(input) {
+        if (input.type === 'color') {
+            input.disabled = true; // 禁用color picker，不随表单提交
+        } else if (input.type === 'text') {
+            input.value = '';
+        }
+    });
+}
+
+// TMDB API密钥可见性切换
+function toggleTMDBKeyVisibility() {
+    const input = document.getElementById('tmdb_api_key');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}在线设备 - Emby管理系统{% endblock %}
+{% block topbar_title %}📱 在线设备{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in" style="display:flex;align-items:center;justify-content:space-between;">
+    <p class="text-muted">实时显示Emby服务器上的在线设备及播放状态</p>
+    <button onclick="location.reload()" class="btn btn-sm btn-secondary">🔄 刷新</button>
+</div>
+
+<!-- 统计卡片 -->
+<div class="stats-grid fade-in">
+    <div class="stat-card stat-card-info">
+        <div class="stat-card-glow"></div>
+        <div class="stat-icon">📱</div>
+        <div class="stat-value">{{ total_devices }}</div>
+        <div class="stat-label">在线设备</div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-card-glow"></div>
+        <div class="stat-icon">▶️</div>
+        <div class="stat-value">{{ playing_devices|length }}</div>
+        <div class="stat-label">正在播放</div>
+    </div>
+    <div class="stat-card stat-card-warning">
+        <div class="stat-card-glow"></div>
+        <div class="stat-icon">💤</div>
+        <div class="stat-value">{{ idle_devices|length }}</div>
+        <div class="stat-label">空闲</div>
+    </div>
+</div>
+
+<!-- 正在播放 -->
+{% if playing_devices %}
+<div class="card mt-3 fade-in" style="border-color: var(--primary);">
+    <div class="card-header" style="border-color: var(--primary);">
+        <h3>▶️ 正在播放 ({{ playing_devices|length }})</h3>
+    </div>
+    <div class="card-body no-padding">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>用户</th>
+                        <th>播放内容</th>
+                        <th>客户端</th>
+                        <th>设备</th>
+                        <th>播放位置</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in playing_devices %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-center gap-1">
+                                <div class="user-avatar">{{ d.get('UserName', '?')[0] | upper }}</div>
+                                <span>{{ d.get('UserName', '-') }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <strong>{{ d.get('NowPlayingItem', {}).get('Name', '-') }}</strong>
+                            {% if d.get('NowPlayingItem', {}).get('ProductionYear') %}
+                            <span class="text-muted">({{ d.get('NowPlayingItem', {}).get('ProductionYear') }})</span>
+                            {% endif %}
+                            <br>
+                            <span class="text-muted" style="font-size:12px;">
+                                {{ d.get('NowPlayingItem', {}).get('Type', '') }}
+                                {% if d.get('NowPlayingItem', {}).get('SeriesName') %}
+                                - {{ d.get('NowPlayingItem', {}).get('SeriesName') }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>{{ d.get('Client', '-') }}<br><span class="text-muted" style="font-size:11px;">v{{ d.get('ApplicationVersion', '') }}</span></td>
+                        <td>{{ d.get('DeviceName', '-') }}</td>
+                        <td>
+                            {% if d.get('PlayState', {}).get('PositionTicks') and d.get('NowPlayingItem', {}).get('RunTimeTicks') %}
+                            {% set pos = (d.get('PlayState', {}).get('PositionTicks') / 600000000) | int %}
+                            {% set total = (d.get('NowPlayingItem', {}).get('RunTimeTicks') / 600000000) | int %}
+                            <div style="width:120px;">
+                                <div style="background:var(--bg-dark);border-radius:4px;height:5px;overflow:hidden;">
+                                    <div style="background:var(--primary);height:100%;width:{% if total > 0 %}{{ (pos/total*100)|int }}{% else %}0{% endif %}%;border-radius:4px;"></div>
+                                </div>
+                                <span style="font-size:11px;" class="text-muted">{{ pos }}分 / {{ total }}分</span>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                            {% if d.get('PlayState', {}).get('IsPaused') %}
+                            <br><span class="badge badge-warning" style="font-size:10px;">已暂停</span>
+                            {% endif %}
+                            {% if d.get('TranscodingInfo') %}
+                            <br><span class="badge badge-info" style="font-size:10px;">🔄 转码中</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 空闲设备 -->
+{% if idle_devices %}
+<div class="card mt-3 fade-in">
+    <div class="card-header">
+        <h3>💤 空闲设备 ({{ idle_devices|length }})</h3>
+    </div>
+    <div class="card-body no-padding">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>用户</th>
+                        <th>客户端</th>
+                        <th>设备</th>
+                        <th>最近活动</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in idle_devices %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-center gap-1">
+                                <div class="user-avatar">{{ d.get('UserName', '?')[0] | upper }}</div>
+                                <span>{{ d.get('UserName', '-') }}</span>
+                            </div>
+                        </td>
+                        <td>{{ d.get('Client', '-') }}<br><span class="text-muted" style="font-size:11px;">v{{ d.get('ApplicationVersion', '') }}</span></td>
+                        <td>{{ d.get('DeviceName', '-') }}</td>
+                        <td class="text-muted" style="font-size:13px;">{{ d.get('LastActivityDate', '-') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if not playing_devices and not idle_devices %}
+<div class="empty-state fade-in" style="padding:60px;">
+    <div class="empty-icon">📱</div>
+    <h3>无在线设备</h3>
+    <p class="text-muted">当前没有设备连接到Emby服务器</p>
+</div>
+{% endif %}
+{% endblock %}
