@@ -263,10 +263,16 @@ class Config:
     def is_setup_complete():
         """检查是否已完成初始设置"""
         s = _load_settings()
-        # 如果有setup_complete标记，使用它
+        # 优先使用标记值
         if 'setup_complete' in s:
             return s.get('setup_complete', False)
-        # 兼容旧版本：检查是否已有emby配置
+        # 如果没有标记，检查是否有有效的Emby配置（兼容旧版本或数据迁移场景）
+        return bool(s.get('emby_server_url') and s.get('emby_api_key'))
+    
+    @staticmethod
+    def has_valid_config():
+        """检查是否有有效的配置"""
+        s = _load_settings()
         return bool(s.get('emby_server_url') and s.get('emby_api_key'))
     
     @staticmethod

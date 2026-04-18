@@ -4,10 +4,14 @@
 # ============================================
 #
 # 使用方式:
-#   仅 MediaBox:     docker-compose up -d mediabox
-#   完整部署(含Emby): docker-compose up -d
+#   首次部署:         docker-compose up -d mediabox
 #   查看日志:         docker-compose logs -f
 #   停止服务:         docker-compose down
+#
+# 首次使用:
+#   1. 创建空配置文件: touch settings.json
+#   2. 启动服务: docker-compose up -d mediabox
+#   3. 访问 http://localhost:5000 完成初始化
 #
 # ============================================
 
@@ -25,7 +29,7 @@ services:
     volumes:
       - ./data:/app/data         # SQLite 数据库
       - ./logs:/app/logs         # 应用日志
-      - ./settings.json:/app/settings.json:ro  # 配置文件（只读）
+      - ./settings.json:/app/settings.json  # 配置文件
 
     environment:
       - TZ=Asia/Shanghai         # 时区
