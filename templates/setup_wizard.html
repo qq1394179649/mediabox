@@ -698,6 +698,17 @@ body {
         updateUI();
     }
 
+    // 阻止输入框中的回车键触发表单提交
+    form.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // 如果是最后一步且在密码确认框按回车，触发提交
+            if (currentStep === 4 && e.target.id === 'admin_password_confirm') {
+                form.dispatchEvent(new Event('submit'));
+            }
+        }
+    });
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
