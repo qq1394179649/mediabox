@@ -1,4 +1,4 @@
-# 🎬 MediaBox - Emby 媒体库管理系统
+<img width="1920" height="1080" alt="00_setup_wizard" src="https://github.com/user-attachments/assets/fe038dfd-2565-4ff1-a467-073f156562b1" /># 🎬 MediaBox - Emby 媒体库管理系统
 
 基于 Python Flask 开发的 Emby 服务器管理系统，提供完整的 Web 管理面板。
 
@@ -171,10 +171,25 @@ networks:
 
 ## 🎨 界面预览
 
-- 🌙 深色主题，专为媒体管理场景设计
-- 🪟 玻璃态效果
-- ✨ 流畅动画与微交互
-- 📱 响应式布局
+<img width="1920" height="1080" alt="00_setup_wizard" src="https://github.com/user-attachments/assets/d882b5a3-d000-4413-ae63-f94846623f77" />
+<img width="1920" height="1048" alt="01_setup_wizard" src="https://github.com/user-attachments/assets/5c58f9e7-3318-4d9b-b9c4-d0c48a7ba270" />
+<img width="1920" height="1048" alt="user" src="https://github.com/user-attachments/assets/12fe916d-bb33-4e77-9d7d-3b3b5b3e1835" />
+<img width="1920" height="1048" alt="tmdb" src="https://github.com/user-attachments/assets/26afa484-66cf-4df8-b7a4-95f383d09f46" />
+<img width="1920" height="1048" alt="system" src="https://github.com/user-attachments/assets/10401788-2617-46ee-a1be-eb5b14ae6a0f" />
+<img width="1920" height="1048" alt="strm" src="https://github.com/user-attachments/assets/a06587f9-71bb-487a-85ec-b750aa29218c" />
+<img width="1920" height="1048" alt="set1" src="https://github.com/user-attachments/assets/8f46f695-be0f-4aba-bfd1-d0d2cc9f3d4b" />
+<img width="1920" height="1048" alt="set" src="https://github.com/user-attachments/assets/024c212c-c148-4179-bad5-dd71ef5d67ba" />
+<img width="1920" height="1048" alt="quanxian" src="https://github.com/user-attachments/assets/692e57f6-232b-49a9-a668-d54690400180" />
+<img width="1920" height="1048" alt="new" src="https://github.com/user-attachments/assets/c2497e3b-7def-42d0-9b30-dbfef8b1b8ea" />
+<img width="1920" height="1048" alt="media" src="https://github.com/user-attachments/assets/4691b07e-a88d-4068-932e-65cd70186ced" />
+<img width="1920" height="1048" alt="login" src="https://github.com/user-attachments/assets/78b78b8c-4753-4c15-8633-b6bab647a813" />
+<img width="1920" height="1048" alt="line" src="https://github.com/user-attachments/assets/29b2f511-54fb-4ade-8f66-8d54ece27824" />
+<img width="1920" height="1048" alt="index" src="https://github.com/user-attachments/assets/23190ab3-1497-4cdf-a3cc-4676887b919a" />
+<img width="1920" height="1048" alt="about" src="https://github.com/user-attachments/assets/01f01062-53b1-4924-a641-5a229510a69d" />
+<img width="1920" height="1048" alt="03_setup_wizard" src="https://github.com/user-attachments/assets/2d7e6c16-2b50-4808-b9fd-bffbed104188" />
+<img width="1920" height="1048" alt="02_setup_wizard" src="https://github.com/user-attachments/assets/1b3f0671-b291-4bba-a384-af847004e16e" />
+
+
 
 ## ⚠️ 注意事项
 
