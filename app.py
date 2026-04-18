@@ -451,8 +451,7 @@ def setup_wizard():
     # 如果已完成设置，重定向到首页
     if Config.is_setup_complete():
         return redirect(url_for('dashboard'))
-    theme_colors = Config.get_theme_colors()
-    return render_template('setup_wizard.html', theme_colors=theme_colors)
+    return render_template('setup_wizard.html')
 
 
 @app.route('/api/setup/test-emby', methods=['POST'])

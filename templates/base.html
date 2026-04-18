@@ -382,12 +382,6 @@
     updateTime();
     setInterval(updateTime, 1000);
     </script>
-    {% else %}
-    {% if request.path == '/setup-wizard' %}
-    {% block content %}{% endblock %}
-    {% else %}
-    {% block login_content %}{% endblock %}
-    {% endif %}
     {% endif %}
 
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
