@@ -552,12 +552,14 @@ def api_setup_complete():
                 (admin_username, password_hash, admin_username)
             )
         
-        # 如果是默认admin用户，需要更新环境变量
+        # 如果用户名不是默认admin，需要更新设置并删除默认admin账户
         if admin_username != Config.ADMIN_USERNAME:
-            # 需要更新settings中的admin_username
+            # 更新settings中的admin_username
             s = Config._load_settings()
             s['admin_username'] = admin_username
             _save_settings(s)
+            # 删除默认的admin账户
+            db.execute('DELETE FROM users WHERE username = ?', (Config.ADMIN_USERNAME,))
         
         db.commit()
         
