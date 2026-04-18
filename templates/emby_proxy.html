@@ -411,6 +411,22 @@
 
 {% block extra_js %}
 <script>
+// 复制到剪贴板（兼容不支持 clipboard API 的浏览器）
+async function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+    } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
+}
+
 // 切换反代端口输入框启用状态
 document.getElementById('emby_proxy_enabled').addEventListener('change', function() {
     const portInput = document.getElementById('emby_proxy_port');
@@ -418,20 +434,16 @@ document.getElementById('emby_proxy_enabled').addEventListener('change', functio
 });
 
 // 复制代理URL
-function copyProxyUrl() {
+async function copyProxyUrl() {
     const port = document.getElementById('emby_proxy_port').value || '8097';
     const host = window.location.hostname;
     const url = `http://${host}:${port}`;
-    navigator.clipboard.writeText(url).then(() => {
-        // 视觉反馈
-        const btn = event.currentTarget;
-        const orig = btn.innerHTML;
-        btn.innerHTML = '✅';
-        setTimeout(() => { btn.innerHTML = orig; }, 1500);
-    }).catch(() => {
-        // fallback
-        prompt('请复制以下地址:', url);
-    });
+    await copyToClipboard(url);
+    // 视觉反馈
+    const btn = event.currentTarget;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✅';
+    setTimeout(() => { btn.innerHTML = orig; }, 1500);
 }
 </script>
 {% endblock %}

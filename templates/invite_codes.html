@@ -168,6 +168,23 @@
 </div>
 
 <script>
+// 复制到剪贴板（兼容不支持 clipboard API 的浏览器）
+async function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+    } else {
+        // fallback: 使用 textarea + execCommand
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
+}
+
 // 生成邀请码
 document.getElementById('create-code-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -207,7 +224,7 @@ document.getElementById('create-code-form').addEventListener('submit', async (e)
             if (data.template_name) {
                 msg += ` (${data.template_name})`;
             }
-            await navigator.clipboard.writeText(data.code);
+            await copyToClipboard(data.code);
             flash(msg, 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
@@ -226,7 +243,7 @@ document.getElementById('create-code-form').addEventListener('submit', async (e)
 document.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
         const code = btn.dataset.code;
-        await navigator.clipboard.writeText(code);
+        await copyToClipboard(code);
         flash('已复制到剪贴板', 'success');
     });
 });
