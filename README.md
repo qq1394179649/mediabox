@@ -85,6 +85,8 @@ docker run -d \
 ```
 
 ### Docker compose
+
+
   services:
   mediabox:
     image: ghcr.io/qq1394179649/mediabox:latest
