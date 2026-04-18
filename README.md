@@ -84,8 +84,11 @@ docker run -d \
   ghcr.io/qq1394179649/mediabox:latest
 ```
 
-### Docker compose
 
+
+
+
+### Docker compose
 
   services:
   mediabox:
@@ -117,6 +120,7 @@ networks:
   default:
     driver: bridge
     
+
 
 ## 📦 技术栈
 
