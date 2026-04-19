@@ -24,9 +24,9 @@ from scraper import MediaScraper
 import requests as http_requests
 
 # ========== 数据库配置 ==========
-DATABASE = Path(__file__).parent / 'data.db'
-DATA_DIR = Path(__file__).parent
+DATA_DIR = Path(__file__).parent / 'data'
 DATA_DIR.mkdir(exist_ok=True)
+DATABASE = DATA_DIR / 'data.db'
 
 def get_db():
     """获取数据库连接"""
@@ -231,8 +231,8 @@ def get_local_ips():
     return hostname, ips
 
 # ========== 应用日志配置 ==========
-LOG_DIR = Path(__file__).parent / 'logs'
-LOG_DIR.mkdir(exist_ok=True)
+LOG_DIR = Path(__file__).parent / 'data' / 'logs'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 APP_LOG_FILE = LOG_DIR / 'mediabox.log'
 
 # 配置日志
@@ -272,6 +272,28 @@ def close_db(error):
     db = g.pop('db', None)
     if db is not None:
         db.close()
+
+# ========== 数据迁移：旧路径 → data 目录 ==========
+def _migrate_data_files():
+    """自动迁移旧版本的数据文件到 data 目录，确保升级后数据不丢失"""
+    base = Path(__file__).parent
+    data_dir = base / 'data'
+    
+    migrations = [
+        (base / 'data.db', data_dir / 'data.db'),
+        (base / 'settings.json', data_dir / 'settings.json'),
+    ]
+    
+    for old_path, new_path in migrations:
+        if old_path.exists() and not new_path.exists():
+            try:
+                import shutil
+                shutil.move(str(old_path), str(new_path))
+                print(f'[MediaBox] 数据迁移: {old_path.name} → data/{old_path.name}')
+            except Exception as e:
+                print(f'[MediaBox] 数据迁移失败 {old_path.name}: {e}')
+
+_migrate_data_files()
 
 # 初始化数据库
 with app.app_context():

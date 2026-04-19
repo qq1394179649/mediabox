@@ -5,19 +5,53 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# 持久化配置文件路径
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json')
+# 持久化配置文件路径（放在 data 目录，Docker 挂载时统一持久化）
+_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+os.makedirs(_DATA_DIR, exist_ok=True)
+SETTINGS_FILE = os.path.join(_DATA_DIR, 'settings.json')
 
 
 def _load_settings():
-    """从settings.json加载运行时配置（优先于.env）"""
+    """从settings.json加载运行时配置（优先于.env）
+    
+    如果settings.json不存在，自动从环境变量初始化并保存，
+    确保Docker升级重建容器后配置不丢失。
+    """
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                # 如果已有配置，直接返回
+                if data.get('emby_server_url') or data.get('emby_api_key'):
+                    return data
+                # 配置为空但有环境变量，自动补全
+                env_url = os.getenv('EMBY_SERVER_URL', '').rstrip('/')
+                env_key = os.getenv('EMBY_API_KEY', '')
+                if env_url or env_key:
+                    data['emby_server_url'] = env_url
+                    data['emby_api_key'] = env_key
+                    if env_url and env_key:
+                        data['setup_complete'] = True
+                    _save_settings(data)
+                return data
         except Exception:
             pass
-    return {}
+    
+    # settings.json 不存在，从环境变量初始化
+    env_url = os.getenv('EMBY_SERVER_URL', '').rstrip('/')
+    env_key = os.getenv('EMBY_API_KEY', '')
+    data = {}
+    if env_url or env_key:
+        data['emby_server_url'] = env_url
+        data['emby_api_key'] = env_key
+        if env_url and env_key:
+            data['setup_complete'] = True
+        # 自动创建 settings.json
+        try:
+            _save_settings(data)
+        except Exception:
+            pass
+    return data
 
 
 def _save_settings(data):
@@ -261,13 +295,24 @@ class Config:
 
     @staticmethod
     def is_setup_complete():
-        """检查是否已完成初始设置"""
+        """检查是否已完成初始设置
+        
+        三级检查：settings.json → 环境变量 → False
+        确保Docker升级后只要有环境变量配置就不会重新进入向导
+        """
         s = _load_settings()
         # 优先使用标记值
-        if 'setup_complete' in s:
-            return s.get('setup_complete', False)
-        # 如果没有标记，检查是否有有效的Emby配置（兼容旧版本或数据迁移场景）
-        return bool(s.get('emby_server_url') and s.get('emby_api_key'))
+        if s.get('setup_complete'):
+            return True
+        # 如果有有效的Emby配置（兼容旧版本）
+        if s.get('emby_server_url') and s.get('emby_api_key'):
+            return True
+        # 最后检查环境变量（Docker部署场景）
+        env_url = os.getenv('EMBY_SERVER_URL', '').rstrip('/')
+        env_key = os.getenv('EMBY_API_KEY', '')
+        if env_url and env_key:
+            return True
+        return False
     
     @staticmethod
     def has_valid_config():

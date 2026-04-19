@@ -8,10 +8,9 @@
 #   查看日志:         docker-compose logs -f
 #   停止服务:         docker-compose down
 #
-# 首次使用:
-#   1. 创建空配置文件: touch settings.json
-#   2. 启动服务: docker-compose up -d mediabox
-#   3. 访问 http://localhost:5000 完成初始化
+# 数据持久化:
+#   所有持久化数据（数据库、配置、日志）统一存储在 ./data 目录
+#   升级镜像后数据不会丢失，无需重新初始化
 #
 # ============================================
 
@@ -27,13 +26,11 @@ services:
       - "8097:8097"    # Emby 反代端口（可选）
 
     volumes:
-      - ./data:/app/data         # SQLite 数据库
-      - ./logs:/app/logs         # 应用日志
-      - ./settings.json:/app/settings.json  # 配置文件
+      - ./data:/app/data         # 持久化数据（数据库 + 配置 + 日志）
 
     environment:
       - TZ=Asia/Shanghai         # 时区
-      # ↓↓↓ 首次部署请取消注释并填写 ↓↓↓
+      # ↓↓↓ 环境变量方式配置（推荐 Docker 部署使用，升级不丢失）↓↓↓
       # - EMBY_SERVER_URL=http://emby:8096
       # - EMBY_API_KEY=your_emby_api_key_here
       # - SECRET_KEY=your_random_secret_key_here

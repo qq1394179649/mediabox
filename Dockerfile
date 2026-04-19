@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 复制应用代码
 COPY --chown=mediabox:mediabox . .
 
-# 创建必要目录
+# 创建必要目录（data 目录用于持久化数据库和配置）
 RUN mkdir -p /app/data /app/logs && \
     chown -R mediabox:mediabox /app/data /app/logs
 
