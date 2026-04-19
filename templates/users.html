@@ -7,61 +7,88 @@
 <div class="fade-in">
     <div class="card">
         <div class="card-header">
-            <h3>用户列表</h3>
-            <span class="badge badge-secondary">{{ db_users|length }} 个用户</span>
+            <h3>Emby 用户列表</h3>
+            <div class="d-flex gap-1" style="align-items:center;">
+                <span class="badge badge-secondary">{{ emby_users|length }} 个用户</span>
+                <a href="{{ url_for('user_create') }}" class="btn btn-sm btn-primary">➕ 创建用户</a>
+            </div>
         </div>
         <div class="card-body no-padding">
-            {% if db_users %}
+            {% if emby_users %}
             <div class="table-responsive">
                 <table class="data-table">
                     <thead>
                         <tr>
                             <th>用户名</th>
-                            <th>显示名称</th>
                             <th>角色</th>
                             <th>状态</th>
-                            <th>注册时间</th>
-                            <th>最后登录</th>
+                            <th>远程访问</th>
+                            <th>最后活动</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for user in db_users %}
-                        <tr data-user-id="{{ user.id }}">
+                        {% for user in emby_users %}
+                        <tr data-user-id="{{ user.get('Id', '') }}">
                             <td>
-                                <code style="font-size: 13px;">{{ user.username }}</code>
-                                {% if user.id == current_user.id %}
-                                <span class="badge badge-primary" style="margin-left: 4px;">我</span>
-                                {% endif %}
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div class="user-avatar" style="width:32px;height:32px;font-size:13px;">
+                                        {{ user.get('Name', '?')[0] | upper }}
+                                    </div>
+                                    <div>
+                                        <div style="font-weight:500;">{{ user.get('Name', '-') }}</div>
+                                        <div class="text-muted" style="font-size:11px;font-family:monospace;">{{ user.get('Id', '')[:8] }}...</div>
+                                    </div>
+                                    {% if user.get('Id') == session.get('emby_user_id') %}
+                                    <span class="badge badge-primary" style="margin-left: 4px;">我</span>
+                                    {% endif %}
+                                </div>
                             </td>
-                            <td>{{ user.display_name or '-' }}</td>
                             <td>
-                                {% if user.is_admin %}
-                                <span class="badge badge-warning">管理员</span>
+                                {% if user.get('Policy', {}).get('IsAdministrator') %}
+                                <span class="badge badge-warning">👑 管理员</span>
                                 {% else %}
                                 <span class="badge badge-secondary">普通用户</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if user.is_active %}
-                                <span class="badge badge-success">正常</span>
-                                {% else %}
+                                {% if user.get('Policy', {}).get('IsDisabled') %}
                                 <span class="badge badge-danger">已禁用</span>
+                                {% elif user.get('Policy', {}).get('IsHidden') %}
+                                <span class="badge badge-warning">已隐藏</span>
+                                {% else %}
+                                <span class="badge badge-success">正常</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.get('Policy', {}).get('EnableRemoteAccess') %}
+                                <span class="badge badge-success">已开启</span>
+                                {% else %}
+                                <span class="badge badge-secondary">已关闭</span>
                                 {% endif %}
                             </td>
                             <td class="text-muted" style="font-size: 12px;">
-                                {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '-' }}
-                            </td>
-                            <td class="text-muted" style="font-size: 12px;">
-                                {{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else '从未登录' }}
+                                {% if user.get('LastActivityDate') %}
+                                    {% set act_date = user.get('LastActivityDate', '') %}
+                                    {% if act_date is string %}
+                                        {{ act_date[:16] | replace('T', ' ') }}
+                                    {% else %}
+                                        {{ act_date }}
+                                    {% endif %}
+                                {% else %}
+                                    从未登录
+                                {% endif %}
                             </td>
                             <td>
-                                {% if user.id != current_user.id %}
+                                {% if user.get('Id') != session.get('emby_user_id') %}
                                 <div class="flex gap-1">
                                     <!-- 切换管理员 -->
-                                    <button type="button" class="btn btn-sm btn-ghost toggle-admin-btn" data-id="{{ user.id }}" title="{{ '取消管理员' if user.is_admin else '设为管理员' }}">
+                                    <button type="button" class="btn btn-sm btn-ghost toggle-admin-btn"
+                                            data-id="{{ user.get('Id') }}"
+                                            data-is-admin="{{ 'true' if user.get('Policy', {}).get('IsAdministrator') else 'false' }}"
+                                            title="{{ '取消管理员' if user.get('Policy', {}).get('IsAdministrator') else '设为管理员' }}">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            {% if user.is_admin %}
+                                            {% if user.get('Policy', {}).get('IsAdministrator') %}
                                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                                             {% else %}
                                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="9" y2="9"/><line x1="15" y1="9" x2="15" y2="9"/>
@@ -69,19 +96,28 @@
                                         </svg>
                                     </button>
                                     <!-- 切换状态 -->
-                                    <button type="button" class="btn btn-sm btn-ghost toggle-active-btn" data-id="{{ user.id }}" title="{{ '启用用户' if not user.is_active else '禁用用户' }}">
-                                        {% if user.is_active %}
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--danger);">
-                                            <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                                        </svg>
-                                        {% else %}
+                                    <button type="button" class="btn btn-sm btn-ghost toggle-active-btn"
+                                            data-id="{{ user.get('Id') }}"
+                                            data-is-disabled="{{ 'true' if user.get('Policy', {}).get('IsDisabled') else 'false' }}"
+                                            title="{{ '启用用户' if user.get('Policy', {}).get('IsDisabled') else '禁用用户' }}">
+                                        {% if user.get('Policy', {}).get('IsDisabled') %}
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--success);">
                                             <polyline points="20 6 9 17 4 12"/>
                                         </svg>
+                                        {% else %}
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--danger);">
+                                            <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                                        </svg>
                                         {% endif %}
                                     </button>
+                                    <!-- 详情 -->
+                                    <a href="{{ url_for('user_detail', user_id=user.get('Id')) }}" class="btn btn-sm btn-ghost" title="查看详情">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </a>
                                     <!-- 删除 -->
-                                    <button type="button" class="btn btn-sm btn-ghost text-danger delete-btn" data-id="{{ user.id }}" title="删除用户">
+                                    <button type="button" class="btn btn-sm btn-ghost text-danger delete-btn" data-id="{{ user.get('Id') }}" title="删除用户">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
                                         </svg>
@@ -98,7 +134,7 @@
             </div>
             {% else %}
             <div class="empty-state" style="padding: 48px;">
-                <p class="text-muted">暂无注册用户</p>
+                <p class="text-muted">无法获取 Emby 用户列表，请检查服务器连接</p>
             </div>
             {% endif %}
         </div>
@@ -109,7 +145,9 @@
 // 切换管理员
 document.querySelectorAll('.toggle-admin-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-        if (!confirm('确定要修改该用户的管理员权限吗？')) return;
+        const isAdmin = btn.dataset.isAdmin === 'true';
+        const action = isAdmin ? '取消管理员' : '设为管理员';
+        if (!confirm(`确定要${action}吗？`)) return;
         
         try {
             const resp = await fetch(`/api/users/${btn.dataset.id}/toggle-admin`, {method: 'POST'});
@@ -130,14 +168,16 @@ document.querySelectorAll('.toggle-admin-btn').forEach(btn => {
 // 切换激活状态
 document.querySelectorAll('.toggle-active-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-        if (!confirm('确定要修改该用户的激活状态吗？')) return;
+        const isDisabled = btn.dataset.isDisabled === 'true';
+        const action = isDisabled ? '启用' : '禁用';
+        if (!confirm(`确定要${action}该用户吗？`)) return;
         
         try {
             const resp = await fetch(`/api/users/${btn.dataset.id}/toggle-active`, {method: 'POST'});
             const data = await resp.json();
             
             if (data.success) {
-                flash('已更新用户状态', 'success');
+                flash(`已${action}用户`, 'success');
                 setTimeout(() => location.reload(), 500);
             } else {
                 flash(data.error || '操作失败', 'danger');

@@ -227,7 +227,7 @@ class Config:
     """基础配置 - 支持从settings.json动态读取"""
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 
-    # 管理面板账户
+    # 管理面板账户（已废弃：登录走 Emby 认证，不再自动创建本地管理员）
     ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
     ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
 

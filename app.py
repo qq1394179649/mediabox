@@ -191,15 +191,8 @@ def init_db():
                        (json_module.dumps(perms), row['id']))
     db.commit()
     
-    # 如果管理员用户不存在，创建一个（使用 INSERT OR IGNORE 避免多 worker 竞态条件）
-    try:
-        db.execute(
-            'INSERT OR IGNORE INTO users (username, password_hash, display_name, is_admin) VALUES (?, ?, ?, 1)',
-            (Config.ADMIN_USERNAME, generate_password_hash(Config.ADMIN_PASSWORD), '管理员')
-        )
-        db.commit()
-    except Exception:
-        pass  # 用户已存在时忽略
+    # 不再自动创建默认管理员用户
+    # 登录时直接调用 Emby API 认证，首次登录会自动同步到本地 users 表
 
 # Flask 版本号
 FLASK_VERSION = flask.__version__
@@ -518,12 +511,27 @@ def api_setup_complete():
     if not emby_url or not emby_api_key:
         return jsonify({'success': False, 'error': '请填写Emby服务器配置'})
     
-    if not admin_username or len(admin_password) < 6:
-        return jsonify({'success': False, 'error': '管理员密码至少需要6位'})
+    if not admin_username or len(admin_password) < 1:
+        return jsonify({'success': False, 'error': '请填写Emby管理员账户和密码'})
     
     try:
-        # 保存Emby配置
+        # 先保存Emby配置（后续认证需要）
         Config.update_emby_config(emby_url, emby_api_key)
+        
+        # 验证管理员账户在Emby中能否登录
+        try:
+            emby = get_emby_client()
+            auth_result = emby.authenticate_by_name(admin_username, admin_password)
+            emby_user = auth_result.get('User', {}) or auth_result
+            
+            # 检查是否为Emby管理员
+            if not emby_user.get('Policy', {}).get('IsAdministrator', False):
+                return jsonify({'success': False, 'error': '该Emby账户不是管理员，请使用管理员账户'})
+        except Exception as e:
+            error_msg = str(e)
+            if '401' in error_msg or 'Unauthorized' in error_msg:
+                return jsonify({'success': False, 'error': 'Emby用户名或密码错误'})
+            return jsonify({'success': False, 'error': f'Emby认证失败: {error_msg}'})
         
         # 保存刮削配置
         Config.update_scraper_config(
@@ -533,9 +541,8 @@ def api_setup_complete():
             douban_fallback=douban_fallback
         )
         
-        # 更新管理员账户
+        # 同步管理员信息到本地数据库（不存储密码，登录走 Emby 认证）
         db = get_db()
-        password_hash = generate_password_hash(admin_password)
         
         # 检查管理员用户是否存在
         cursor = db.execute('SELECT id FROM users WHERE username = ?', (admin_username,))
@@ -543,23 +550,18 @@ def api_setup_complete():
         
         if existing:
             db.execute(
-                'UPDATE users SET password_hash = ? WHERE username = ?',
-                (password_hash, admin_username)
+                'UPDATE users SET is_admin = 1, display_name = ? WHERE username = ?',
+                (admin_username, admin_username)
             )
         else:
             db.execute(
                 'INSERT INTO users (username, password_hash, display_name, is_admin) VALUES (?, ?, ?, 1)',
-                (admin_username, password_hash, admin_username)
+                (admin_username, '', admin_username)
             )
         
-        # 如果用户名不是默认admin，需要更新设置并删除默认admin账户
-        if admin_username != Config.ADMIN_USERNAME:
-            # 更新settings中的admin_username
-            s = Config._load_settings()
-            s['admin_username'] = admin_username
-            _save_settings(s)
-            # 删除默认的admin账户
-            db.execute('DELETE FROM users WHERE username = ?', (Config.ADMIN_USERNAME,))
+        # 清除可能残留的默认admin账户（兼容旧版本升级）
+        db.execute('DELETE FROM users WHERE username = ? AND username != ?', 
+                   ('admin', admin_username))
         
         db.commit()
         
@@ -611,24 +613,62 @@ def login():
         username = request.form.get('username', '')
         password = request.form.get('password', '')
         
-        db = get_db()
-        cursor = db.execute(
-            'SELECT id, username, password_hash, is_admin, display_name FROM users WHERE username = ? AND is_active = 1',
-            (username,)
-        )
-        user = cursor.fetchone()
-        
-        if user and check_password_hash(user['password_hash'], password):
-            # 更新最后登录时间
-            db.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', (user['id'],))
+        # 直接使用 Emby API 认证
+        try:
+            emby = get_emby_client()
+            auth_result = emby.authenticate_by_name(username, password)
+            
+            emby_user = auth_result.get('User', {}) or auth_result
+            emby_user_id = emby_user.get('Id', '')
+            is_admin = emby_user.get('Policy', {}).get('IsAdministrator', False)
+            is_disabled = emby_user.get('Policy', {}).get('IsDisabled', False)
+            display_name = emby_user.get('Name', username)
+            
+            if is_disabled:
+                flash('该账户已被禁用', 'danger')
+                return render_template('login.html')
+            
+            # 同步到本地数据库（保持本地用户记录用于邀请码等功能）
+            db = get_db()
+            cursor = db.execute('SELECT id FROM users WHERE username = ?', (username,))
+            local_user = cursor.fetchone()
+            
+            if local_user:
+                # 更新本地用户的管理员状态和最后登录
+                db.execute('UPDATE users SET is_admin = ?, last_login = CURRENT_TIMESTAMP, display_name = ? WHERE username = ?',
+                          (1 if is_admin else 0, display_name, username))
+            else:
+                # 本地不存在则自动创建（不存储密码，登录走 Emby 认证）
+                db.execute(
+                    'INSERT OR IGNORE INTO users (username, password_hash, display_name, is_admin, is_active) VALUES (?, ?, ?, ?, 1)',
+                    (username, '', display_name, 1 if is_admin else 0)
+                )
             db.commit()
             
-            login_user(MediaBoxUser(user['id'], user['username'], user['is_admin'], True, user['display_name']))
+            # 重新获取本地用户ID
+            cursor = db.execute('SELECT id, is_admin, display_name FROM users WHERE username = ?', (username,))
+            local_user = cursor.fetchone()
+            
+            # 存储 Emby 用户信息到 session
+            session['emby_user_id'] = emby_user_id
+            session['emby_access_token'] = auth_result.get('AccessToken', '')
+            
+            login_user(MediaBoxUser(
+                local_user['id'], username, local_user['is_admin'], True, local_user['display_name']
+            ))
             flash('登录成功！', 'success')
             next_page = request.args.get('next', url_for('dashboard'))
             return redirect(next_page)
-        else:
-            flash('用户名或密码错误', 'danger')
+            
+        except Exception as e:
+            error_msg = str(e)
+            if '401' in error_msg or 'Unauthorized' in error_msg:
+                flash('用户名或密码错误', 'danger')
+            elif 'ConnectionError' in error_msg or '连接' in error_msg:
+                flash('无法连接到 Emby 服务器，请检查配置', 'danger')
+            else:
+                flash(f'登录失败：{error_msg}', 'danger')
+    
     return render_template('login.html')
 
 
@@ -654,7 +694,7 @@ def generate_invite_code(length=8):
 @login_required
 def permission_templates_page():
     """权限模板管理页面"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         flash('需要管理员权限', 'danger')
         return redirect(url_for('dashboard'))
     
@@ -674,7 +714,7 @@ def permission_templates_page():
 @login_required
 def api_get_templates():
     """获取所有权限模板"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     db = get_db()
@@ -689,7 +729,7 @@ def api_get_templates():
 @login_required
 def api_set_default_template(template_id):
     """设置默认模板"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     db = get_db()
@@ -708,7 +748,7 @@ def api_set_default_template(template_id):
 @login_required
 def api_create_template():
     """创建权限模板"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     data = request.get_json() or {}
@@ -736,7 +776,7 @@ def api_create_template():
 @login_required
 def api_delete_template(template_id):
     """删除权限模板"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     db = get_db()
@@ -762,7 +802,7 @@ def api_delete_template(template_id):
 @login_required
 def api_update_template(template_id):
     """更新权限模板"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     data = request.get_json() or {}
@@ -796,7 +836,7 @@ def api_get_default_template():
 @login_required
 def invite_codes_page():
     """邀请码管理页面"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         flash('需要管理员权限', 'danger')
         return redirect(url_for('dashboard'))
     
@@ -827,7 +867,7 @@ def invite_codes_page():
 @login_required
 def api_get_invite_codes():
     """获取邀请码列表API"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     db = get_db()
@@ -858,7 +898,7 @@ def api_create_invite_code():
     """创建邀请码API"""
     log_info(f'[邀请码] 用户 {current_user.username} 请求创建邀请码')
     
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         log_warning(f'[邀请码] 用户 {current_user.username} 无管理员权限')
         return jsonify({'error': '需要管理员权限'}), 403
     
@@ -916,7 +956,7 @@ def api_create_invite_code():
 @login_required
 def api_delete_invite_code(code_id):
     """删除邀请码API"""
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     db = get_db()
@@ -1013,12 +1053,11 @@ def register():
             flash('用户名已存在', 'danger')
             return render_template('register.html', display_name=display_name, invite_code=invite_code)
         
-        # 创建用户
-        password_hash = generate_password_hash(password)
+        # 创建本地用户记录（密码由 Emby 管理，本地不存储）
         cursor = db.execute('''
             INSERT INTO users (username, password_hash, display_name, is_admin)
             VALUES (?, ?, ?, 0)
-        ''', (username, password_hash, display_name or username))
+        ''', (username, '', display_name or username))
         user_id = cursor.lastrowid
         
         # 更新邀请码使用次数
@@ -1064,32 +1103,37 @@ def register():
         
         db.commit()
         
-        flash('注册成功！请使用邀请码登录', 'success')
+        flash('注册成功！请使用 Emby 账号登录', 'success')
         return redirect(url_for('login'))
     
     return render_template('register.html')
 
 
-@app.route('/api/users/<int:user_id>/toggle-admin', methods=['POST'])
+@app.route('/api/users/<user_id>/toggle-admin', methods=['POST'])
 @login_required
 def api_toggle_admin(user_id):
-    """切换用户管理员状态"""
-    if not is_admin_user(current_user.id):
+    """切换Emby用户管理员状态"""
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     # 不能修改自己的管理员状态
-    if user_id == current_user.id:
+    if user_id == session.get('emby_user_id'):
         return jsonify({'error': '不能修改自己的管理员状态'}), 400
     
-    db = get_db()
-    db.execute('UPDATE users SET is_admin = NOT is_admin WHERE id = ?', (user_id,))
-    db.commit()
-    return jsonify({'success': True})
+    try:
+        emby = get_emby_client()
+        user = emby.get_user_by_id(user_id)
+        policy = user.get('Policy', {})
+        policy['IsAdministrator'] = not policy.get('IsAdministrator', False)
+        emby.update_user_policy(user_id, policy)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': f'操作失败: {e}'}), 500
 
 
 @app.route('/api/users/check-username', methods=['POST'])
 def api_check_username():
-    """检查用户名是否可用"""
+    """检查用户名是否可用（本地+Emby双检查）"""
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     
@@ -1101,46 +1145,64 @@ def api_check_username():
     if not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
         return jsonify({'available': False, 'message': '仅支持字母、数字和下划线'})
     
+    # 检查本地数据库
     db = get_db()
     cursor = db.execute('SELECT id FROM users WHERE username = ?', (username,))
     if cursor.fetchone():
         return jsonify({'available': False, 'message': '用户名已被占用'})
     
+    # 检查Emby端
+    try:
+        emby = get_emby_client()
+        emby_users = emby.get_users()
+        for u in emby_users:
+            if u.get('Name', '').lower() == username.lower():
+                return jsonify({'available': False, 'message': '用户名已被占用'})
+    except Exception:
+        pass  # Emby不可用时不阻止注册
+    
     return jsonify({'available': True, 'message': '用户名可用'})
 
 
-@app.route('/api/users/<int:user_id>/toggle-active', methods=['POST'])
+@app.route('/api/users/<user_id>/toggle-active', methods=['POST'])
 @login_required
 def api_toggle_active(user_id):
-    """切换用户激活状态"""
-    if not is_admin_user(current_user.id):
+    """切换Emby用户激活状态"""
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     # 不能禁用自己
-    if user_id == current_user.id:
+    if user_id == session.get('emby_user_id'):
         return jsonify({'error': '不能禁用自己的账户'}), 400
     
-    db = get_db()
-    db.execute('UPDATE users SET is_active = NOT is_active WHERE id = ?', (user_id,))
-    db.commit()
-    return jsonify({'success': True})
+    try:
+        emby = get_emby_client()
+        user = emby.get_user_by_id(user_id)
+        policy = user.get('Policy', {})
+        policy['IsDisabled'] = not policy.get('IsDisabled', False)
+        emby.update_user_policy(user_id, policy)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': f'操作失败: {e}'}), 500
 
 
-@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@app.route('/api/users/<user_id>', methods=['DELETE'])
 @login_required
 def api_delete_user(user_id):
-    """删除用户"""
-    if not is_admin_user(current_user.id):
+    """删除Emby用户"""
+    if not current_user.is_admin:
         return jsonify({'error': '需要管理员权限'}), 403
     
     # 不能删除自己
-    if user_id == current_user.id:
+    if user_id == session.get('emby_user_id'):
         return jsonify({'error': '不能删除自己的账户'}), 400
     
-    db = get_db()
-    db.execute('DELETE FROM users WHERE id = ?', (user_id,))
-    db.commit()
-    return jsonify({'success': True})
+    try:
+        emby = get_emby_client()
+        emby.delete_user(user_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': f'删除失败: {e}'}), 500
 
 
 # ========== 仪表盘（使用缓存加速） ==========
@@ -1298,21 +1360,25 @@ def app_logs():
 @app.route('/users')
 @login_required
 def users_list():
-    """MediaBox用户管理页面"""
-    if not is_admin_user(current_user.id):
+    """Emby用户管理页面 - 直接对接Emby API"""
+    if not current_user.is_admin:
         flash('需要管理员权限', 'danger')
         return redirect(url_for('dashboard'))
     
-    db = get_db()
-    cursor = db.execute('SELECT * FROM users ORDER BY created_at DESC')
-    users = [dict(row) for row in cursor.fetchall()]
-    return render_template('users.html', db_users=users)
+    emby_users = []
+    try:
+        emby = get_emby_client()
+        emby_users = emby.get_users()
+    except Exception as e:
+        flash(f'获取Emby用户列表失败: {e}', 'danger')
+    
+    return render_template('users.html', emby_users=emby_users)
 
 
 @app.route('/users/create', methods=['GET', 'POST'])
 @login_required
 def user_create():
-    if not is_admin_user(current_user.id):
+    if not current_user.is_admin:
         flash('需要管理员权限', 'danger')
         return redirect(url_for('dashboard'))
     

@@ -42,18 +42,136 @@
 
 ## 🚀 快速开始
 
-### Docker 部署（推荐）
+### FNOS 部署（推荐）
 
-```bash
-# 克隆项目
-git clone https://github.com/qq1394179649/mediabox.git
-cd mediabox
+FNOS（飞牛 NAS）内置 Docker 支持，通过以下步骤即可快速部署 MediaBox：
 
-# 启动服务
-docker-compose up -d
+#### 1. 创建存储目录
+
+打开 FNOS 文件管理器，在 Docker 共享文件夹下创建 mediabox 目录：
+
+```
+/docker/mediabox/
+├── data/          # 数据库存储
+└── logs/          # 应用日志
 ```
 
-访问 `http://localhost:5000`，首次登录需要配置 Emby 服务器信息。
+或通过 SSH 执行：
+```bash
+mkdir -p /vol1/docker/mediabox/data /vol1/docker/mediabox/logs
+```
+
+> 💡 FNOS 的存储路径通常为 `/vol1/docker/`，请根据实际情况调整
+
+#### 2. 拉取镜像
+
+打开 FNOS 的 **Docker 管理** → **镜像管理** → **仓库**，搜索并拉取：
+```
+ghcr.io/qq1394179649/mediabox:latest
+```
+
+或通过 SSH 命令行拉取：
+```bash
+docker pull ghcr.io/qq1394179649/mediabox:latest
+```
+
+#### 3. 创建容器
+
+在 FNOS Docker 管理界面 → **Compose** → **新增**，粘贴以下配置：
+
+```yaml
+services:
+  mediabox:
+    image: ghcr.io/qq1394179649/mediabox:latest
+    container_name: mediabox
+    restart: unless-stopped
+
+    ports:
+      - "15000:5000"    # MediaBox 访问端口（外部端口可自行修改）
+
+    volumes:
+      - /vol1/docker/mediabox/data:/app/data        # 数据持久化
+      - /vol1/docker/mediabox/logs:/app/logs         # 日志持久化
+
+    environment:
+      - TZ=Asia/Shanghai
+```
+
+点击 **部署** 启动容器。
+
+> ⚠️ **首次启动不需要配置环境变量**，直接访问 Web 界面通过向导完成初始化即可
+
+#### 4. 访问初始化
+
+浏览器打开 `http://FNOS的IP:15000`，进入设置向导：
+
+1. **连接 Emby** — 填写 Emby 服务器地址（如 `http://10.0.0.10:8096`）和 API 密钥
+2. **创建管理员** — 设置 MediaBox 管理员账户（与 Emby 账户无关）
+3. **完成** — 自动跳转到仪表盘
+
+#### 5. Emby API 密钥获取
+
+1. 登录 Emby Web 界面（管理员账户）
+2. 进入 **设置**（齿轮图标） → **控制台**
+3. 找到 **API 密钥** 选项
+4. 点击 **新建 API 密钥**，应用名填 `MediaBox`
+5. 复制生成的密钥
+
+#### 6. （可选）启用 Emby 反向代理
+
+MediaBox 内置了 Emby 反向代理功能，可以在不暴露 Emby 地址的情况下访问 Emby 界面：
+
+1. 登录 MediaBox → 侧边栏点击 **Emby 反代**
+2. 打开 **启用反向代理** 开关
+3. 端口默认 `8097`，如需外部访问需在 FNOS 防火墙放行该端口
+4. 点击 **保存并应用**
+
+> 💡 反向代理默认关闭，按需开启即可
+
+---
+
+### Docker Compose 部署
+
+适用于任何支持 Docker 的系统（群晖、unraid、Linux 服务器等）：
+
+```bash
+# 创建目录
+mkdir -p mediabox/data mediabox/logs
+
+# 创建 docker-compose.yml 并粘贴下方配置
+cat > mediabox/docker-compose.yml << 'EOF'
+services:
+  mediabox:
+    image: ghcr.io/qq1394179649/mediabox:latest
+    container_name: mediabox
+    restart: unless-stopped
+    ports:
+      - "15000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Shanghai
+EOF
+
+# 启动
+cd mediabox && docker-compose up -d
+```
+
+访问 `http://服务器IP:15000` 完成初始化设置。
+
+### Docker Run
+
+```bash
+docker run -d \
+  --name mediabox \
+  --restart unless-stopped \
+  -p 15000:5000 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  -e TZ=Asia/Shanghai \
+  ghcr.io/qq1394179649/mediabox:latest
+```
 
 ### 手动部署
 
@@ -71,56 +189,17 @@ python app.py
 
 访问 `http://localhost:5000`
 
-### Docker Run
+### 🔄 更新镜像
 
 ```bash
-docker run -d \
-  --name mediabox \
-  -p 5000:5000 \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/logs:/app/logs \
-  -e EMBY_SERVER_URL=http://your-emby-server:8096 \
-  -e EMBY_API_KEY=your-api-key \
-  ghcr.io/qq1394179649/mediabox:latest
+# 拉取最新镜像
+docker pull ghcr.io/qq1394179649/mediabox:latest
+
+# 重建容器（数据不会丢失，data 和 logs 目录已挂载持久化）
+docker-compose down && docker-compose up -d
 ```
 
-
-
-
-
-### Docker compose
-```bash
-  services:
-  mediabox:
-    image: ghcr.io/qq1394179649/mediabox:latest
-    container_name: mediabox
-    restart: unless-stopped
-    
-    ports:
-      - "15000:5000"    # 正常访问端口
-
-    volumes:
-      - /vol1/1000/docker/mediabox/data:/app/data
-      - /vol1/1000/docker/mediabox/logs:/app/logs
-
-    environment:
-      - TZ=Asia/Shanghai
-      - EMBY_SERVER_URL=http://10.0.0.10:8096    # 你的 Emby 地址
-      - EMBY_API_KEY=XXXXXXXXXXX                # 把这里改成你的真实API密钥
-      - SECRET_KEY=mediabox_2025_random_key     # 随便填一串随机字符
-
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:5000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-networks:
-  default:
-    driver: bridge
-```    
-
+> FNOS 用户也可以在 Docker 管理 → 镜像中点击「更新」，然后重建容器
 
 ## 📦 技术栈
 
@@ -133,10 +212,12 @@ networks:
 
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
-| `FLASK_ENV` | 运行环境 | `production` |
-| `EMBY_SERVER_URL` | Emby 服务器地址 | - |
-| `EMBY_API_KEY` | Emby API Key | - |
+| `TZ` | 时区 | `Asia/Shanghai` |
+| `EMBY_SERVER_URL` | Emby 服务器地址（也可在向导中配置） | - |
+| `EMBY_API_KEY` | Emby API Key（也可在向导中配置） | - |
 | `SECRET_KEY` | Flask 密钥 | 随机生成 |
+
+> 💡 推荐通过 Web 向导配置 Emby 连接，无需手动设置环境变量
 
 ## 📁 项目结构
 
@@ -193,9 +274,10 @@ networks:
 
 ## ⚠️ 注意事项
 
-1. **API 密钥安全**：不要将 settings.json 提交到公开仓库
-2. **网络访问**：确保可访问 Emby 服务器
-3. **生产部署**：建议使用 Docker 部署，配置 HTTPS
+1. **数据持久化**：`data` 和 `logs` 目录必须挂载到宿主机，否则容器重建后数据丢失
+2. **网络访问**：确保 MediaBox 容器可访问 Emby 服务器
+3. **反向代理**：默认关闭，如需启用请在 Web 界面中手动开启
+4. **更新容器**：拉取新镜像后需重建容器（`docker-compose down && up -d`），数据不会丢失
 
 ## 📄 许可证
 

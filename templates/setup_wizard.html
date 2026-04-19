@@ -454,26 +454,30 @@ body {
                     </div>
                     
                     <div class="step-content" data-step="2">
-                        <h2 class="step-title">设置管理员账户</h2>
-                        <p class="step-desc">创建 MediaBox 管理后台的登录凭证</p>
+                        <h2 class="step-title">验证管理员身份</h2>
+                        <p class="step-desc">输入 Emby 管理员账户，用于验证您的管理员权限</p>
                         
                         <div class="form-group">
-                            <label for="admin_username">用户名</label>
+                            <label for="admin_username">Emby 管理员用户名</label>
                             <input type="text" id="admin_username" name="admin_username" class="form-control" 
-                                   placeholder="admin" value="admin" required>
+                                   placeholder="Emby 管理员用户名" required>
+                            <small style="color: #6b7280; font-size: 12px;">必须是 Emby 服务器中具有管理员权限的账户</small>
                         </div>
                         
                         <div class="form-group">
                             <label for="admin_password">密码</label>
                             <input type="password" id="admin_password" name="admin_password" class="form-control" 
-                                   placeholder="至少6位字符" minlength="6" required>
+                                   placeholder="Emby 管理员密码" required>
+                            <small style="color: #6b7280; font-size: 12px;">仅用于验证身份，不会被存储</small>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="admin_password_confirm">确认密码</label>
-                            <input type="password" id="admin_password_confirm" name="admin_password_confirm" class="form-control" 
-                                   placeholder="再次输入密码" required>
-                            <div class="invalid-feedback" id="passwordMatchError" style="display: none;">两次输入的密码不一致</div>
+                        <div class="form-group" style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" style="flex-shrink:0;margin-top:2px;">
+                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                                </svg>
+                                <span style="font-size: 12px; color: #0369a1;">MediaBox 使用 Emby 账户直接认证，密码不会保存在本地。后续登录也使用 Emby 账户密码。</span>
+                            </div>
                         </div>
                     </div>
                     
@@ -628,28 +632,18 @@ body {
 
     function validatePassword() {
         const pw = document.getElementById('admin_password').value;
-        const pw2 = document.getElementById('admin_password_confirm').value;
-        const error = document.getElementById('passwordMatchError');
         
-        if (pw.length < 6) {
-            flash('密码至少需要6位字符', 'warning');
+        if (!pw) {
+            flash('请输入 Emby 管理员密码', 'warning');
             return false;
         }
         
-        if (pw !== pw2) {
-            error.style.display = 'block';
-            document.getElementById('admin_password_confirm').classList.add('is-invalid');
-            return false;
-        }
-        
-        error.style.display = 'none';
-        document.getElementById('admin_password_confirm').classList.remove('is-invalid');
         return true;
     }
 
-    document.getElementById('admin_password_confirm').addEventListener('input', () => {
-        document.getElementById('passwordMatchError').style.display = 'none';
-        document.getElementById('admin_password_confirm').classList.remove('is-invalid');
+    // 密码输入实时清除错误状态
+    document.getElementById('admin_password').addEventListener('input', () => {
+        // 无需额外操作
     });
 
     document.getElementById('proxy_enabled').addEventListener('change', (e) => {
@@ -702,8 +696,8 @@ body {
     form.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            // 如果是最后一步且在密码确认框按回车，触发提交
-            if (currentStep === 4 && e.target.id === 'admin_password_confirm') {
+            // 如果是最后一步且在密码框按回车，触发提交
+            if (currentStep === 4 && e.target.id === 'admin_password') {
                 form.dispatchEvent(new Event('submit'));
             }
         }
