@@ -242,6 +242,22 @@ a:hover { color: var(--primary-light); }
 .nav-item.nav-item-danger { color: var(--danger) !important; opacity: .85; }
 .nav-item.nav-item-danger:hover { opacity: 1; background: rgba(239,83,80,.08); border-color: rgba(239,83,80,.15); }
 
+/* Navigation badge (e.g. OFF indicator) */
+.nav-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  line-height: 1;
+  margin-left: 6px;
+}
+.nav-badge-off {
+  background: rgba(158,158,158,0.15);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
 .nav-icon {
   width: 20px;
   height: 20px;
